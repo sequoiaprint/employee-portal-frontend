@@ -29,10 +29,15 @@ const Sidebar = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const handleLogout = () => {
-    dispatch(logout());
+const handleLogout = async () => {
+  try {
+    await dispatch(logout()).unwrap();
     navigate('/login');
-  };
+    window.location.reload();
+  } catch (error) {
+    console.error('Logout failed:', error);
+  }
+};
 
   const toggleSidebar = () => {
     setIsCollapsed(!isCollapsed);

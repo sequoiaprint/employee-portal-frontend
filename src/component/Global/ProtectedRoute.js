@@ -2,11 +2,17 @@ import { useSelector } from 'react-redux';
 import { Navigate, Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
+import Cookies from 'js-cookie';
+
 
 const ProtectedRoute = () => {
   const { token, isLoading } = useSelector((state) => state.auth);
+  
 
-  // Show loading state while checking authentication
+  const encryptedToken = Cookies.get('authToken');
+  const cookieToken = encryptedToken ? encryptedToken: null;
+
+ 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -15,8 +21,8 @@ const ProtectedRoute = () => {
     );
   }
 
-  // Only redirect if initialization is complete and there's no token
-  if (!isLoading && !token) {
+
+  if (!isLoading && !token && !cookieToken) {
     return <Navigate to="/login" replace />;
   }
 

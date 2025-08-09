@@ -8,7 +8,7 @@ import Home from './pages/Home/Home';
 import Profile from './pages/Profile/Profile';
 import EditProfile from './pages/Profile/EditProfile';
 import Login from './pages/Login/Login';
-import './utils/authDebug';
+
 
 const App = () => {
   const dispatch = useDispatch();

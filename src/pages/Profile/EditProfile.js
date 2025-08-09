@@ -127,7 +127,7 @@ const EditProfile = () => {
     setIsLoading(true);
 
     setTimeout(() => {
-      localStorage.setItem('userProfile', JSON.stringify(formData));
+      //localStorage.setItem('userProfile', JSON.stringify(formData));
       setIsLoading(false);
       setShowSuccessMessage(true);
       setHasChanges(false);

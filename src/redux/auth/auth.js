@@ -2,7 +2,7 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
 import Cookies from 'js-cookie';
 
-const API_URL = 'https://storage-leone-celebrities-pierre.trycloudflare.com/api/auth';
+const API_URL = 'http://localhost:9000/api/auth';
 
 // XOR Encryption/Decryption functions
 const xorEncrypt = (text, secretKey = '28032002') => {
@@ -37,8 +37,7 @@ const COOKIE_CONFIG = {
   path: '/'
 };
 
-// Fallback to localStorage if cookies fail
-const useLocalStorage = false; // Set to true if cookies are problematic
+
 
 const authSlice = createSlice({
   name: 'auth',
@@ -67,13 +66,18 @@ const authSlice = createSlice({
       state.error = action.payload;
     },
     logoutSuccess(state) {
-      state.token = null;
-      state.user = null;
-      state.credentials = { name: null, password: null };
-      Cookies.remove('authToken', { path: '/' });
-      Cookies.remove('adam', { path: '/' });
-      Cookies.remove('eve', { path: '/' });
-    },
+    state.token = null;
+    state.user = null;
+    state.credentials = { name: null, password: null };
+    
+    Cookies.remove('authToken', { path: '/' });
+    Cookies.remove('adam', { path: '/' });
+    Cookies.remove('eve', { path: '/' });
+    Cookies.remove('tokenExpiration', { path: '/' });
+      Cookies.remove('userUid', { path: '/' });
+   
+    localStorage.removeItem('authToken');
+  },
     setCredentials(state, action) {
       state.credentials = action.payload;
     }
@@ -127,11 +131,15 @@ export const login = createAsyncThunk(
     try {
       const response = await axios.post(`${API_URL}/login`, { name, password });
       const { token, user } = response.data.data;
+      console.log(user.uid);
+      const uid= user.uid;
       
       // Store token in both cookies and localStorage
       const encryptedToken = xorEncrypt(token);
       Cookies.set('authToken', encryptedToken, COOKIE_CONFIG);
-      localStorage.setItem('authToken', encryptedToken); // Add this line
+       Cookies.set('userUid', uid, COOKIE_CONFIG); // Store UID in cookie
+
+      //localStorage.setItem('authToken', encryptedToken); // Add this line
       
       storeCredentials(name, password);
       dispatch(setCredentials({ name, password }));
@@ -147,25 +155,28 @@ export const login = createAsyncThunk(
 export const logout = () => async (dispatch, getState) => {
   try {
     const token = getState().auth.token;
-    await axios.post(`${API_URL}/logout`, {}, {
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
-    });
+    if (token) {
+      await axios.post(`${API_URL}/logout`, {}, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+    }
   } catch (error) {
     console.error('Logout error:', error);
   } finally {
+    // This will trigger the logoutSuccess reducer which clears cookies
     dispatch(logoutSuccess());
   }
 };
 
-// Initialize auth state from cookies
+
 export const initializeAuth = () => async (dispatch) => {
   dispatch(loginStart());
   
   try {
-    // Try both cookies and localStorage
-    let encryptedToken = Cookies.get('authToken') || localStorage.getItem('authToken');
+   
+    let encryptedToken = Cookies.get('authToken') 
     
     if (encryptedToken) {
       const token = xorDecrypt(encryptedToken);
@@ -182,12 +193,12 @@ export const initializeAuth = () => async (dispatch) => {
           return;
         } catch (validationError) {
           console.error('Token validation failed:', validationError);
-          // Token is invalid, proceed to login failure
+          
         }
       }
     }
     
-    // If we get here, no valid token was found
+    
     const credentials = getStoredCredentials();
     if (credentials) {
       dispatch(setCredentials(credentials));

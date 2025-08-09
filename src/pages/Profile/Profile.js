@@ -15,10 +15,10 @@ const Profile = () => {
   
   // Get profile data from localStorage or use defaults
   const getProfileData = () => {
-    const savedProfile = localStorage.getItem('userProfile');
-    if (savedProfile) {
-      return JSON.parse(savedProfile);
-    }
+    // const savedProfile = localStorage.getItem('userProfile');
+    // if (savedProfile) {
+    //   return JSON.parse(savedProfile);
+    // }
     return {
       name: user?.name || 'John Doe',
       email: user?.email || 'john.doe@sequoia.com',
