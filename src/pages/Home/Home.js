@@ -1,7 +1,28 @@
-import React from "react";
-import { useSelector } from 'react-redux';
+import React, { useState, useEffect } from 'react';
+import { useSelector, useDispatch } from 'react-redux';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { fetchProfile } from '../../redux/profile/profile'; // Import the profile action
+import Cookies from 'js-cookie';
 
 const Home = () => {
+    const { user } = useSelector((state) => state.auth);
+    const { currentProfile, loading } = useSelector((state) => state.profile); // Get profile data
+    const dispatch = useDispatch();
+    const location = useLocation();
+    const navigate = useNavigate();
+   
+    const fullName = currentProfile ? `${currentProfile.firstname || ''} ${currentProfile.lastname || ''}`.trim() : user?.name || '';
+    // Fetch profile data when component mounts or user changes
+    useEffect(() => {
+      if (user?.uid) {
+        // Only fetch if we don't have profile data or it's for a different user
+        if (!currentProfile || currentProfile.uid !== user.uid) {
+          dispatch(fetchProfile(user.uid));
+        }
+      }
+    }, [dispatch, user?.uid]);
+
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-6 font-sans">
       {/* Header with background image and welcome text */}
@@ -18,7 +39,7 @@ const Home = () => {
         <div className="absolute inset-0 bg-gradient-to-r from-blue-900/70 to-purple-900/60 backdrop-blur-sm rounded-xl"></div>
         <div className="relative z-10 p-6 h-full flex flex-col justify-center">
           <h1 className="font-extrabold text-3xl sm:text-4xl mb-2 drop-shadow-lg transition-all duration-300 hover:text-blue-300">
-            Welcome back, <span className="text-blue-300">Admin</span>!
+            Welcome back, <span className="text-blue-300">{fullName}</span>!
           </h1>
           <p className="text-md sm:text-lg opacity-90 drop-shadow-md transition-all duration-300 hover:opacity-100">
             Here's what's happening at Sequoia Print today

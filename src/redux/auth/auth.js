@@ -29,15 +29,22 @@ const xorDecrypt = (encrypted, secretKey = '28032002') => {
   }
 };
 
-// Cookie configuration
+// Updated Cookie configuration
 const COOKIE_CONFIG = {
-  expires: 1, 
+  expires: new Date(new Date().getTime() + 24 * 60 * 60 * 1000), // 1 day from now
   secure: process.env.NODE_ENV === 'production',
   sameSite: 'strict',
   path: '/'
 };
 
-
+// Centralized logout function
+const clearAuthData = () => {
+  const cookiesToClear = ['authToken', 'adam', 'eve', 'tokenExpiration', 'userUid'];
+  cookiesToClear.forEach(cookie => {
+    Cookies.remove(cookie, { path: '/' });
+  });
+  localStorage.removeItem('authToken');
+};
 
 const authSlice = createSlice({
   name: 'auth',
@@ -46,6 +53,7 @@ const authSlice = createSlice({
     user: null,
     isLoading: false,
     error: null,
+    isAuthenticated: false,
     credentials: {
       name: null,
       password: null
@@ -60,26 +68,28 @@ const authSlice = createSlice({
       state.isLoading = false;
       state.token = action.payload.token;
       state.user = action.payload.user;
+      state.isAuthenticated = true;
+      state.error = null;
     },
     loginFailure(state, action) {
       state.isLoading = false;
       state.error = action.payload;
+      state.isAuthenticated = false;
     },
     logoutSuccess(state) {
-    state.token = null;
-    state.user = null;
-    state.credentials = { name: null, password: null };
-    
-    Cookies.remove('authToken', { path: '/' });
-    Cookies.remove('adam', { path: '/' });
-    Cookies.remove('eve', { path: '/' });
-    Cookies.remove('tokenExpiration', { path: '/' });
-      Cookies.remove('userUid', { path: '/' });
-   
-    localStorage.removeItem('authToken');
-  },
+      state.token = null;
+      state.user = null;
+      state.credentials = { name: null, password: null };
+      state.isAuthenticated = false;
+      state.error = null;
+      
+      clearAuthData();
+    },
     setCredentials(state, action) {
       state.credentials = action.payload;
+    },
+    clearError(state) {
+      state.error = null;
     }
   },
   extraReducers: (builder) => {
@@ -92,16 +102,41 @@ const authSlice = createSlice({
         state.isLoading = false;
         state.token = action.payload.token;
         state.user = action.payload.user;
+        state.isAuthenticated = true;
+        state.error = null;
       })
       .addCase(login.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload;
+        state.isAuthenticated = false;
+      })
+      .addCase(validateToken.pending, (state) => {
+        state.isLoading = true;
+      })
+      .addCase(validateToken.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.token = action.payload.token;
+        state.user = action.payload.user;
+        state.isAuthenticated = true;
+        state.error = null;
+      })
+      .addCase(validateToken.rejected, (state) => {
+        state.isLoading = false;
+        state.isAuthenticated = false;
+        state.token = null;
+        state.user = null;
       });
   }
 });
 
-export const { loginStart, loginSuccess, loginFailure, logoutSuccess, setCredentials } = authSlice.actions;
-
+export const { 
+  loginStart, 
+  loginSuccess, 
+  loginFailure, 
+  logoutSuccess, 
+  setCredentials, 
+  clearError 
+} = authSlice.actions;
 
 const storeCredentials = (name, password) => {
   const encryptedName = xorEncrypt(name);
@@ -109,7 +144,6 @@ const storeCredentials = (name, password) => {
   Cookies.set('adam', encryptedName, COOKIE_CONFIG);
   Cookies.set('eve', encryptedPassword, COOKIE_CONFIG);
 };
-
 
 export const getStoredCredentials = () => {
   const encryptedName = Cookies.get('adam');
@@ -124,92 +158,126 @@ export const getStoredCredentials = () => {
   return null;
 };
 
-
 export const login = createAsyncThunk(
   'auth/login',
   async ({ name, password }, { rejectWithValue, dispatch }) => {
     try {
       const response = await axios.post(`${API_URL}/login`, { name, password });
       const { token, user } = response.data.data;
-      console.log(user.uid);
-      const uid= user.uid;
+      const uid = user.uid;
       
       // Store token in both cookies and localStorage
       const encryptedToken = xorEncrypt(token);
       Cookies.set('authToken', encryptedToken, COOKIE_CONFIG);
-       Cookies.set('userUid', uid, COOKIE_CONFIG); // Store UID in cookie
-
-      //localStorage.setItem('authToken', encryptedToken); // Add this line
+      Cookies.set('userUid', uid, COOKIE_CONFIG);
+      localStorage.setItem('authToken', encryptedToken);
       
       storeCredentials(name, password);
       dispatch(setCredentials({ name, password }));
       
       return { token, user };
     } catch (error) {
+      console.error('Login error:', error);
       return rejectWithValue(error.response?.data?.message || 'Login failed');
     }
   }
 );
 
+export const validateToken = createAsyncThunk(
+  'auth/validateToken',
+  async (_, { rejectWithValue }) => {
+    try {
+      const encryptedToken = Cookies.get('authToken') || localStorage.getItem('authToken');
+      if (!encryptedToken) {
+        return rejectWithValue('No token found');
+      }
 
-export const logout = () => async (dispatch, getState) => {
-  try {
-    const token = getState().auth.token;
-    if (token) {
-      await axios.post(`${API_URL}/logout`, {}, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      });
-    }
-  } catch (error) {
-    console.error('Logout error:', error);
-  } finally {
-    // This will trigger the logoutSuccess reducer which clears cookies
-    dispatch(logoutSuccess());
-  }
-};
-
-
-export const initializeAuth = () => async (dispatch) => {
-  dispatch(loginStart());
-  
-  try {
-   
-    let encryptedToken = Cookies.get('authToken') 
-    
-    if (encryptedToken) {
       const token = xorDecrypt(encryptedToken);
+      if (!token) {
+        return rejectWithValue('Invalid token format');
+      }
+
+      const response = await axios.get(`${API_URL}/validate`, {
+        headers: { Authorization: `Bearer ${token}` },
+        timeout: 10000 // 10 second timeout
+      });
+      
+      return {
+        token,
+        user: response.data.user || response.data.data?.user
+      };
+    } catch (error) {
+      console.error('Token validation failed:', error);
+      
+      // Only clear auth data if the error is specifically an auth error
+      if (error.response?.status === 401) {
+        clearAuthData();
+      }
+      
+      if (error.code === 'ECONNABORTED') {
+        return rejectWithValue('Connection timeout');
+      }
+      
+      return rejectWithValue(
+        error.response?.data?.message || 'Token validation failed'
+      );
+    }
+  }
+);
+
+export const logout = createAsyncThunk(
+  'auth/logout',
+  async (_, { getState, dispatch }) => {
+    try {
+      const state = getState();
+      const token = state.auth.token;
+      
       if (token) {
-        try {
-          const response = await axios.get(`${API_URL}/validate`, {
-            headers: { Authorization: `Bearer ${token}` }
-          });
-          
-          dispatch(loginSuccess({
-            token,
-            user: response.data.user
-          }));
-          return;
-        } catch (validationError) {
-          console.error('Token validation failed:', validationError);
-          
+        await axios.post(`${API_URL}/logout`, {}, {
+          headers: { Authorization: `Bearer ${token}` },
+          timeout: 5000
+        });
+      }
+    } catch (error) {
+      console.warn('Server logout failed:', error.message);
+    } finally {
+      // Always clear local auth data
+      dispatch(logoutSuccess());
+    }
+  }
+);
+
+export const initializeAuth = createAsyncThunk(
+  'auth/initialize',
+  async (_, { dispatch, rejectWithValue }) => {
+    try {
+      // First, check if we have a token
+      const encryptedToken = Cookies.get('authToken') || localStorage.getItem('authToken');
+      
+      if (encryptedToken) {
+        const token = xorDecrypt(encryptedToken);
+        
+        if (token) {
+          // Validate the token
+          const result = await dispatch(validateToken()).unwrap();
+          return result;
         }
       }
+      
+      // If no valid token, check for stored credentials
+      const credentials = getStoredCredentials();
+      if (credentials) {
+        dispatch(setCredentials(credentials));
+        return rejectWithValue('Stored credentials found but no valid session');
+      }
+      
+      return rejectWithValue('No valid authentication found');
+    } catch (error) {
+      console.error('Auth initialization error:', error);
+      // Don't clear auth data here - let validateToken handle that
+      return rejectWithValue(error.message || 'Auth initialization failed');
     }
-    
-    
-    const credentials = getStoredCredentials();
-    if (credentials) {
-      dispatch(setCredentials(credentials));
-    }
-    
-    dispatch(loginFailure(null));
-    
-  } catch (error) {
-    console.error('Auth initialization error:', error);
-    dispatch(loginFailure(null));
   }
-};
+);
 
 export default authSlice.reducer;

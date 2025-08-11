@@ -4,15 +4,13 @@ import Sidebar from './Sidebar';
 import Header from './Header';
 import Cookies from 'js-cookie';
 
-
 const ProtectedRoute = () => {
-  const { token, isLoading } = useSelector((state) => state.auth);
+  const { token, isLoading, isAuthenticated } = useSelector((state) => state.auth);
   
-
+  // Check both cookie and Redux state
   const encryptedToken = Cookies.get('authToken');
-  const cookieToken = encryptedToken ? encryptedToken: null;
+  const hasToken = !!token || !!encryptedToken;
 
- 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -21,8 +19,7 @@ const ProtectedRoute = () => {
     );
   }
 
-
-  if (!isLoading && !token && !cookieToken) {
+  if (!isLoading && !hasToken && !isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
 

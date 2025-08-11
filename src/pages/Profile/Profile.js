@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useSelector } from 'react-redux';
+import React, { useEffect } from 'react';
+import { useSelector, useDispatch } from 'react-redux';
 import { useLocation } from 'react-router-dom';
 import {
   ProfileHeader,
@@ -7,40 +7,27 @@ import {
   WorkInformation,
   RecentActivity
 } from '../../component/Profile';
+import { fetchProfile } from '../../redux/profile/profile';
 
 const Profile = () => {
+  const dispatch = useDispatch();
   const { user } = useSelector((state) => state.auth);
+//  console.log(user)
+  const { currentProfile, loading, error } = useSelector((state) => state.profile);
   const location = useLocation();
-  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
-  
-  // Get profile data from localStorage or use defaults
-  const getProfileData = () => {
-    // const savedProfile = localStorage.getItem('userProfile');
-    // if (savedProfile) {
-    //   return JSON.parse(savedProfile);
-    // }
-    return {
-      name: user?.name || 'John Doe',
-      email: user?.email || 'john.doe@sequoia.com',
-      phone: '+1 (555) 123-4567',
-      department: 'Engineering',
-      position: 'Senior Developer',
-      location: 'San Francisco, CA',
-      joinDate: 'January 15, 2022',
-      bio: 'Passionate software developer with 5+ years of experience in full-stack development. Love creating efficient and scalable solutions.',
-      profileImage: null
-    };
-  };
-
-  const [formData, setFormData] = useState(getProfileData());
+  const [showSuccessMessage, setShowSuccessMessage] = React.useState(false);
+//console.log(currentProfile)
+  // Fetch profile data when component mounts or user changes
+  useEffect(() => {
+    if (user?.uid) {
+      dispatch(fetchProfile(user.uid));
+    }
+  }, [dispatch, user?.uid]);
 
   // Handle success message from EditProfile
   useEffect(() => {
     if (location.state?.message) {
       setShowSuccessMessage(true);
-      if (location.state?.updatedData) {
-        setFormData(location.state.updatedData);
-      }
       
       // Clear the message after showing it
       const timer = setTimeout(() => {
@@ -52,16 +39,68 @@ const Profile = () => {
       return () => clearTimeout(timer);
     }
   }, [location.state]);
+   
 
-  // Update profile data when localStorage changes (in case of external updates)
-  useEffect(() => {
-    const handleStorageChange = () => {
-      setFormData(getProfileData());
+  // Format profile data for components
+const getProfileData = () => {
+  if (currentProfile) {
+    const fullName = `${currentProfile.firstname || ''} ${currentProfile.lastname || ''}`.trim();
+
+    return {
+      name: fullName || user?.name || 'John Doe',
+      email: currentProfile.email || user?.email || 'john.doe@sequoia.com',
+      phone: currentProfile.phonno || '+1 (555) 123-4567',
+      department: currentProfile.department || 'Engineering',
+      position: currentProfile.position || 'Senior Developer',
+      location: currentProfile.location || 'San Francisco, CA',
+      joinDate: currentProfile.joindate || 'January 15, 2022',
+      bio: currentProfile.bio || 'Passionate software developer with experience in full-stack development.',
+      profileImage: currentProfile.profilepicurl || null,
+      EmployeeID: currentProfile.uid || 'EMP-2024-001',
+      manager:currentProfile.manager,
+      work_schedule:currentProfile.work_schedule
     };
+  }
 
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
-  }, []);
+  return {
+    name: user?.name || 'John Doe',
+    email: user?.email || 'john.doe@sequoia.com',
+    phone: '+1 (555) 123-4567',
+    department: 'Engineering',
+    position: 'Senior Developer',
+    location: 'San Francisco, CA',
+    joinDate: 'January 15, 2022',
+    bio: 'Passionate software developer with experience in full-stack development.',
+    profileImage: null
+  };
+};
+
+
+  const formData = getProfileData();
+
+  if (loading && !currentProfile) {
+    return (
+      <div className="flex justify-center items-center h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-orange-500"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-gradient-to-br from-gray-50 to-gray-100 p-4 sm:p-6">
+        <div className="max-w-7xl mx-auto bg-white rounded-xl shadow-lg p-6 text-center">
+          <div className="text-red-500 mb-4">
+            <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Error loading profile</h3>
+          <p className="text-gray-600">{error}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-gradient-to-br from-gray-50 to-gray-100 p-4 sm:p-6">
@@ -95,7 +134,7 @@ const Profile = () => {
 
           <div className="space-y-6">
             <WorkInformation formData={formData} />
-            <RecentActivity />
+            {/* <RecentActivity /> */}
           </div>
         </div>
       </div>

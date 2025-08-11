@@ -1,45 +1,69 @@
 import React, { useState, useEffect } from 'react';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { ProfileImageUpload, ProfileAvatar } from '../../component/Profile';
+import { profilepicurlUpload, ProfileAvatar } from '../../component/Profile';
+import { fetchProfile, updateProfile } from '../../redux/profile/profile';
+import PhotoUploader from '../../component/Global/uploader';
 
 const EditProfile = () => {
-  const { user } = useSelector((state) => state.auth);
+  const dispatch = useDispatch();
   const navigate = useNavigate();
-
+  
+  // Get user data from auth state
+  const { user } = useSelector((state) => state.auth);
+  // Get profile data from profile state
+  const { currentProfile, loading: profileLoading, error: profileError } = useSelector((state) => state.profile);
+  
+  // Initialize form data
   const getInitialData = () => {
-    const savedProfile = localStorage.getItem('userProfile');
-    if (savedProfile) {
-      return JSON.parse(savedProfile);
-    }
+     const fullName = `${currentProfile.firstname || ''} ${currentProfile.lastname || ''}`.trim();
     return {
-      name: user?.name || 'John Doe',
-      email: user?.email || 'john.doe@sequoia.com',
-      phone: '+1 (555) 123-4567',
-      department: 'Engineering',
-      position: 'Senior Developer',
-      location: 'San Francisco, CA',
-      joinDate: 'January 15, 2022',
-      bio: 'Passionate software developer with 5+ years of experience in full-stack development. Love creating efficient and scalable solutions.',
-      profileImage: null
+      username:currentProfile.username,
+      name: fullName || '',
+      email: currentProfile?.email || '',
+      phone: currentProfile?.phonno || '',
+      department: currentProfile?.department || '',
+      position: currentProfile?.designation || '',
+      location: currentProfile?.location || '',
+      joinDate: currentProfile?.joindate || '',
+      bio: currentProfile?.bio || '',
+      profilepicurl: currentProfile?.profilepicurl || null
     };
   };
 
   const [formData, setFormData] = useState(getInitialData());
   const [errors, setErrors] = useState({});
-  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [uploadError, setUploadError] = useState('');
 
-  const initialData = getInitialData();
-
+  // Fetch profile data when component mounts
   useEffect(() => {
-    const hasFormChanges = Object.keys(formData).some(
-      key => formData[key] !== initialData[key]
-    );
-    setHasChanges(hasFormChanges);
-  }, [formData, initialData]);
+    if (user?.uid) {
+      dispatch(fetchProfile(user.uid));
+    }
+  }, [dispatch, user?.uid]);
 
+  // Update form data when profile data changes
+  useEffect(() => {
+    if (currentProfile) {
+      setFormData(getInitialData());
+    }
+  }, [currentProfile]);
+
+  // Check for changes
+  useEffect(() => {
+    if (currentProfile) {
+      const initialData = getInitialData();
+      const hasFormChanges = Object.keys(formData).some(
+        key => formData[key] !== initialData[key]
+      );
+      setHasChanges(hasFormChanges);
+    }
+  }, [formData, currentProfile]);
+
+  // Warn about unsaved changes
   useEffect(() => {
     const handleBeforeUnload = (e) => {
       if (hasChanges) {
@@ -67,10 +91,27 @@ const EditProfile = () => {
     }
   };
 
-  const handleImageUpload = (image) => {
+  const handleImageUploadSuccess = (imageUrl) => {
     setFormData(prev => ({
       ...prev,
-      profileImage: image
+      profilepicurl: imageUrl
+      
+    }));
+    console.log(formData);
+    setHasChanges(true);
+    setUploadError('');
+  };
+
+  const handleImageUploadError = (error) => {
+    setUploadError(error);
+    // Clear error after 5 seconds
+    setTimeout(() => setUploadError(''), 5000);
+  };
+
+  const handleRemoveImage = () => {
+    setFormData(prev => ({
+      ...prev,
+      profilepicurl: null
     }));
     setHasChanges(true);
   };
@@ -112,7 +153,7 @@ const EditProfile = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
 
     if (!validateForm()) {
@@ -124,11 +165,21 @@ const EditProfile = () => {
       return;
     }
 
-    setIsLoading(true);
+    setIsSubmitting(true);
 
-    setTimeout(() => {
-      //localStorage.setItem('userProfile', JSON.stringify(formData));
-      setIsLoading(false);
+    try {
+      await dispatch(updateProfile({
+        uid: user.uid,
+        profileData: {
+          phone: formData.phone,
+          department: formData.department,
+          position: formData.position,
+          location: formData.location,
+          bio: formData.bio,
+          profilepicurl: formData.profilepicurl
+        }
+      })).unwrap();
+
       setShowSuccessMessage(true);
       setHasChanges(false);
 
@@ -136,12 +187,16 @@ const EditProfile = () => {
         setShowSuccessMessage(false);
         navigate('/profile', {
           state: {
-            message: 'Profile updated successfully!',
-            updatedData: formData
+            message: 'Profile updated successfully!'
           }
         });
       }, 2000);
-    }, 1000);
+    } catch (error) {
+      console.error('Failed to update profile:', error);
+      // Error is already handled by Redux
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleCancel = () => {
@@ -151,6 +206,57 @@ const EditProfile = () => {
     }
     navigate('/profile');
   };
+
+  const formatTime = (time) => {
+  const [hour, minute] = time.split(':').map(Number);
+  const ampm = hour >= 12 ? 'PM' : 'AM';
+  const hour12 = hour % 12 || 12;
+  return `${hour12}:${minute.toString().padStart(2, '0')} ${ampm}`;
+};
+
+// Format ISO date to readable format
+const formatDate = (isoDate) => {
+  if (!isoDate) return 'N/A';
+  const date = new Date(isoDate);
+  return date.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+};
+
+  if (profileLoading && !currentProfile) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-6 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#EA7125] mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading profile data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (profileError) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-6 flex items-center justify-center">
+        <div className="bg-white p-6 rounded-lg shadow-md max-w-md w-full">
+          <div className="text-red-500 mb-4">
+            <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h2 className="text-xl font-bold text-center mb-2">Error Loading Profile</h2>
+          <p className="text-gray-600 text-center mb-6">{profileError}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="w-full bg-[#EA7125] text-white py-2 rounded-lg hover:bg-[#F58E3F] transition-colors"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 p-6 flex flex-col items-center">
@@ -171,6 +277,23 @@ const EditProfile = () => {
         </div>
       )}
 
+      {/* Upload Error Message */}
+      {uploadError && (
+        <div className="fixed top-6 right-6 z-50">
+          <div className="bg-white shadow-xl rounded-lg p-4 border-l-4 border-red-500 flex items-center space-x-3 animate-fade-in-up">
+            <div className="bg-red-500 bg-opacity-10 p-2 rounded-full">
+              <svg className="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </div>
+            <div>
+              <p className="font-medium text-gray-800">Upload failed</p>
+              <p className="text-sm text-gray-500">{uploadError}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="bg-white rounded-2xl shadow-lg w-full max-w-5xl p-8">
         <h1 className="text-3xl font-extrabold text-[#EA7125] mb-8 text-center">Edit Profile</h1>
         <form onSubmit={handleSave} className="space-y-10">
@@ -178,45 +301,37 @@ const EditProfile = () => {
             {/* Left - Avatar and Upload */}
             <div className="flex flex-col items-center md:w-1/3 space-y-6">
               <ProfileAvatar
-                image={formData.profileImage}
+                image={formData.profilepicurl}
                 name={formData.name}
                 size="xlarge"
                 showInitials={false}
                 className="rounded-full border-4 border-[#EA7125] shadow-lg"
               />
-              <button
-                type="button"
-                onClick={() => {
-                  // Clear the profile image
-                  handleImageUpload(null);
-                }}
-                className="px-6 py-2 bg-[#EA7125] text-white rounded-lg hover:bg-[#F58E3F] transition-colors"
-              >
-                Remove Image
-              </button>
-              <input
-                type="file"
-                accept="image/png, image/jpeg, image/gif"
-                onChange={(e) => {
-                  const file = e.target.files[0];
-                  if (file) {
-                    const reader = new FileReader();
-                    reader.onloadend = () => {
-                      handleImageUpload(reader.result);
-                    };
-                    reader.readAsDataURL(file);
-                  }
-                }}
-                className="hidden"
-                id="profile-image-upload"
-              />
-              <label
-                htmlFor="profile-image-upload"
-                className="cursor-pointer px-6 py-2 border border-[#EA7125] rounded-lg text-[#EA7125] hover:bg-[#F58E3F] hover:text-white transition-colors"
-              >
-                Choose Image
-              </label>
-              <p className="text-sm text-gray-600 text-center">JPG, GIF or PNG. Max size 2MB</p>
+              
+              {/* Upload Section */}
+              <div className="space-y-4 w-full">
+                <PhotoUploader
+                  onUploadSuccess={handleImageUploadSuccess}
+                  onUploadError={handleImageUploadError}
+                  accept="image/png,image/jpeg,image/gif"
+                >
+                  <div className="px-6 py-2 border border-[#EA7125] rounded-lg text-[#EA7125] hover:bg-[#F58E3F] hover:text-white transition-colors text-center">
+                    Choose Image
+                  </div>
+                </PhotoUploader>
+                
+                {formData.profilepicurl && (
+                  <button
+                    type="button"
+                    onClick={handleRemoveImage}
+                    className="w-full px-6 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                  >
+                    Remove Image
+                  </button>
+                )}
+                
+                <p className="text-sm text-gray-600 text-center">JPG, GIF or PNG. Max size 2MB</p>
+              </div>
             </div>
 
             {/* Right - Form Fields */}
@@ -234,6 +349,20 @@ const EditProfile = () => {
                       className={`w-full px-4 py-3 rounded-lg border focus:ring-2 focus:ring-[#EA7125] focus:border-[#EA7125] transition-all ${
                         errors.name ? 'border-red-500' : 'border-gray-300'
                       }`}
+                      disabled // Name might come from auth and not be editable here
+                    />
+                    {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name}</p>}
+                  </div>
+                   <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Username*</label>
+                    <input
+                      name="name"
+                      value={formData.username}
+                      onChange={handleInputChange}
+                      className={`w-full px-4 py-3 rounded-lg border focus:ring-2 focus:ring-[#EA7125] focus:border-[#EA7125] transition-all ${
+                        errors.name ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                      disabled // Name might come from auth and not be editable here
                     />
                     {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name}</p>}
                   </div>
@@ -247,6 +376,7 @@ const EditProfile = () => {
                       className={`w-full px-4 py-3 rounded-lg border focus:ring-2 focus:ring-[#EA7125] focus:border-[#EA7125] transition-all ${
                         errors.email ? 'border-red-500' : 'border-gray-300'
                       }`}
+                    
                     />
                     {errors.email && <p className="mt-1 text-sm text-red-600">{errors.email}</p>}
                   </div>
@@ -307,7 +437,7 @@ const EditProfile = () => {
                     <label className="block text-sm font-medium text-gray-700 mb-2">Join Date</label>
                     <input
                       name="joinDate"
-                      value={formData.joinDate}
+                      value={formatDate(formData.joinDate)}
                       onChange={handleInputChange}
                       className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#EA7125] focus:border-[#EA7125] transition-all"
                       disabled
@@ -350,14 +480,14 @@ const EditProfile = () => {
                 </button>
                 <button
                   type="submit"
-                  disabled={!hasChanges || isLoading}
+                  disabled={!hasChanges || isSubmitting}
                   className={`w-full sm:w-auto px-8 py-3 rounded-lg text-white transition-colors ${
-                    hasChanges && !isLoading
+                    hasChanges && !isSubmitting
                       ? 'bg-[#EA7125] hover:bg-[#F58E3F]'
                       : 'bg-[#EA7125] bg-opacity-50 cursor-not-allowed'
                   }`}
                 >
-                  {isLoading ? (
+                  {isSubmitting ? (
                     <span className="flex items-center justify-center">
                       <svg className="animate-spin -ml-1 mr-3 h-6 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>

@@ -4,7 +4,7 @@ import { useDispatch } from 'react-redux';
 import { logout } from '../../redux/auth/auth';
 
 const Sidebar = () => {
-  const [isCollapsed, setIsCollapsed] = useState(true);
+  const [isCollapsed, setIsCollapsed] = useState(true); // Start collapsed
   const [isMobile, setIsMobile] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
@@ -16,12 +16,8 @@ const Sidebar = () => {
       const width = window.innerWidth;
       setIsMobile(width < 768); // md breakpoint
       
-      // Auto-collapse on mobile and tablet
-      if (width < 1024) { // lg breakpoint
-        setIsCollapsed(true);
-      } else {
-        setIsCollapsed(false);
-      }
+      // Keep collapsed on all screen sizes initially
+      // Remove auto-open behavior for desktop
     };
 
     handleResize();
@@ -57,16 +53,16 @@ const handleLogout = async () => {
       path: '/'
     },
     {
-      id: 'employees',
-      label: 'Employees',
+      id: '',
+      label: 'News',
       icon: (
         <img 
-          src="https://img.icons8.com/fluency/48/group.png" 
-          alt="employees" 
+          src="https://img.icons8.com/fluency/48/news.png" 
+          alt="news" 
           className="w-4 h-4 sm:w-5 sm:h-5"
         />
       ),
-      path: '/employees'
+      path: '/news'
     },
     {
       id: 'projects',
@@ -126,12 +122,12 @@ const handleLogout = async () => {
       }`}>
         <button
           onClick={toggleSidebar}
-          className="p-2.5 bg-white rounded-xl shadow-lg hover:shadow-xl hover:bg-gray-50 transition-all duration-300 border border-gray-200 transform hover:scale-105 backdrop-blur-sm bg-white/95"
+          className="p-2.5 bg-[#eb772b] rounded-xl shadow-lg hover:shadow-xl hover:bg-[#eb772b] transition-all duration-300 border border-gray-200 transform hover:scale-105 backdrop-blur-sm bg-[#eb772b]/95"
         >
           <div className="w-5 h-5 flex flex-col justify-center items-center space-y-1">
-            <div className="w-full h-0.5 bg-gray-600 rounded-full transition-all duration-300"></div>
-            <div className="w-full h-0.5 bg-gray-600 rounded-full transition-all duration-300"></div>
-            <div className="w-full h-0.5 bg-gray-600 rounded-full transition-all duration-300"></div>
+            <div className="w-full h-0.5 bg-white rounded-full transition-all duration-300"></div>
+            <div className="w-full h-0.5 bg-white rounded-full transition-all duration-300"></div>
+            <div className="w-full h-0.5 bg-white rounded-full transition-all duration-300"></div>
           </div>
         </button>
       </div>
@@ -150,12 +146,12 @@ const handleLogout = async () => {
       } w-64 md:w-72`}>
         
         {/* Header */}
-        <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-orange-50 to-white flex items-center justify-between">
+        <div className="p-4 border-b pl-[22%] border-gray-200 bg-gradient-to-r from-orange-50 to-white flex items-center justify-between">
           <div className="flex items-center">
             <img 
               src="https://voicemsgsequoia.s3.ap-south-1.amazonaws.com/sequiaPrintLogo.png" 
               alt="Sequoia Print Logo" 
-              className="h-8 w-auto object-contain"
+              className="h-12 w-auto object-contain"
             />
           </div>
           <button
@@ -198,7 +194,7 @@ const handleLogout = async () => {
         <div className="p-4 border-t border-gray-200 bg-gradient-to-r from-gray-50 to-white">
           <button
             onClick={handleLogout}
-            className="w-full flex items-center justify-center space-x-3 px-4 py-3 rounded-xl text-red-600 hover:bg-gradient-to-r hover:from-red-50 hover:to-red-100 transition-all duration-300 hover:shadow-md text-sm font-medium"
+            className="w-full flex items-center justify-start space-x-3 px-4 py-3 rounded-xl text-red-600 hover:bg-gradient-to-r hover:from-red-50 hover:to-red-100 transition-all duration-300 hover:shadow-md text-sm font-medium"
           >
             <img 
               src="https://img.icons8.com/fluency/48/exit.png" 

@@ -1,0 +1,377 @@
+// redux/profile/profile.js
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import axios from 'axios';
+import Cookies from 'js-cookie';
+
+// XOR decryption function (same as yours)
+const xorDecrypt = (encrypted, secretKey = '28032002') => {
+  try {
+    const decoded = atob(encrypted);
+    let result = '';
+    for (let i = 0; i < decoded.length; i++) {
+      const charCode = decoded.charCodeAt(i) ^ secretKey.charCodeAt(i % secretKey.length);
+      result += String.fromCharCode(charCode);
+    }
+    return result;
+  } catch (error) {
+    console.error('Decryption failed:', error);
+    return null;
+  }
+};
+
+// Storage keys
+const PROFILE_STORAGE_KEY = 'userProfile';
+const PROFILES_LIST_STORAGE_KEY = 'profilesList';
+
+// Helper functions for localStorage
+const saveProfileToStorage = (profile) => {
+  try {
+    localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(profile));
+  } catch (error) {
+    console.error('Failed to save profile to storage:', error);
+  }
+};
+
+const getProfileFromStorage = () => {
+  try {
+    const profile = localStorage.getItem(PROFILE_STORAGE_KEY);
+    return profile ? JSON.parse(profile) : null;
+  } catch (error) {
+    console.error('Failed to load profile from storage:', error);
+    return null;
+  }
+};
+
+const saveProfilesListToStorage = (profiles) => {
+  try {
+    localStorage.setItem(PROFILES_LIST_STORAGE_KEY, JSON.stringify(profiles));
+  } catch (error) {
+    console.error('Failed to save profiles list to storage:', error);
+  }
+};
+
+const getProfilesListFromStorage = () => {
+  try {
+    const profiles = localStorage.getItem(PROFILES_LIST_STORAGE_KEY);
+    return profiles ? JSON.parse(profiles) : [];
+  } catch (error) {
+    console.error('Failed to load profiles list from storage:', error);
+    return [];
+  }
+};
+
+// Centralized auth error handling
+const handleAuthError = (error, rejectWithValue) => {
+  console.error('API Error:', error);
+  
+  if (error.response) {
+    const status = error.response.status;
+    const message = error.response.data?.message || error.response.statusText;
+    
+    if (status === 401 || status === 403) {
+      // Clear all auth data
+      const cookiesToClear = ['authToken', 'adam', 'eve', 'tokenExpiration', 'userUid'];
+      cookiesToClear.forEach(cookie => {
+        Cookies.remove(cookie, { path: '/' });
+      });
+      localStorage.removeItem('authToken');
+      
+      // Redirect to login
+      setTimeout(() => {
+        window.location.href = '/login';
+      }, 100);
+      
+      return rejectWithValue('Session expired, please login again');
+    } else if (status === 404) {
+      return rejectWithValue('Resource not found');
+    } else if (status >= 500) {
+      return rejectWithValue('Server error, please try again later');
+    }
+    
+    return rejectWithValue(message || 'Request failed');
+  } else if (error.request) {
+    // Network error
+    return rejectWithValue('Network error - please check your connection');
+  } else if (error.code === 'ECONNABORTED') {
+    return rejectWithValue('Request timeout - please try again');
+  }
+  
+  return rejectWithValue(error.message || 'An unexpected error occurred');
+};
+
+// Get auth token with validation
+const getAuthToken = () => {
+  const encryptedToken = Cookies.get('authToken') || localStorage.getItem('authToken');
+  if (!encryptedToken) {
+    return null;
+  }
+  
+  const token = xorDecrypt(encryptedToken);
+  if (!token) {
+    console.warn('Failed to decrypt auth token');
+    return null;
+  }
+  
+  return token;
+};
+
+// Create axios config with auth
+const createAuthConfig = () => {
+  const token = getAuthToken();
+  if (!token) {
+    throw new Error('No valid auth token found');
+  }
+  
+  return {
+    headers: { Authorization: `Bearer ${token}` },
+    timeout: 15000 // 15 second timeout
+  };
+};
+
+export const fetchAllProfiles = createAsyncThunk(
+  'profile/fetchAll',
+  async (_, { rejectWithValue }) => {
+    try {
+      const config = createAuthConfig();
+      const response = await axios.get('http://localhost:9000/api/profiles', config);
+      
+      // Save to localStorage
+      saveProfilesListToStorage(response.data?.data || response.data || []);
+      
+      return response.data?.data || response.data || [];
+    } catch (error) {
+      if (error.message === 'No valid auth token found') {
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 100);
+        return rejectWithValue('No authentication found');
+      }
+      return handleAuthError(error, rejectWithValue);
+    }
+  }
+);
+
+export const fetchProfile = createAsyncThunk(
+  'profile/fetchOne',
+  async (uid, { rejectWithValue }) => {
+    try {
+      if (!uid) {
+        return rejectWithValue('User ID is required');
+      }
+      
+      const config = createAuthConfig();
+      const response = await axios.get(`http://localhost:9000/api/profiles/${uid}`, config);
+      
+      const profileData = response.data?.data || response.data;
+      
+      // Save to localStorage
+      saveProfileToStorage(profileData);
+      
+      return profileData;
+    } catch (error) {
+      if (error.message === 'No valid auth token found') {
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 100);
+        return rejectWithValue('No authentication found');
+      }
+      return handleAuthError(error, rejectWithValue);
+    }
+  }
+);
+
+export const updateProfile = createAsyncThunk(
+  'profile/update',
+  async ({ uid, profileData }, { rejectWithValue }) => {
+    try {
+      if (!uid) {
+        return rejectWithValue('User ID is required');
+      }
+      
+      if (!profileData || typeof profileData !== 'object') {
+        return rejectWithValue('Valid profile data is required');
+      }
+      console.log(profileData)
+      
+      const config = createAuthConfig();
+      const response = await axios.put(
+        `http://localhost:9000/api/profiles/${uid}`, 
+        profileData, 
+        config
+      );
+      
+      const updatedProfile = response.data?.data || response.data;
+      
+      // Save to localStorage
+      saveProfileToStorage(updatedProfile);
+      
+      return updatedProfile;
+    } catch (error) {
+      if (error.message === 'No valid auth token found') {
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 100);
+        return rejectWithValue('No authentication found');
+      }
+      return handleAuthError(error, rejectWithValue);
+    }
+  }
+);
+
+export const createProfile = createAsyncThunk(
+  'profile/create',
+  async (profileData, { rejectWithValue }) => {
+    try {
+      if (!profileData || typeof profileData !== 'object') {
+        return rejectWithValue('Valid profile data is required');
+      }
+      
+      const config = createAuthConfig();
+      const response = await axios.post(
+        'http://localhost:9000/api/profiles', 
+        profileData, 
+        config
+      );
+      
+      const newProfile = response.data?.data || response.data;
+      
+      // Save to localStorage
+      saveProfileToStorage(newProfile);
+      
+      return newProfile;
+    } catch (error) {
+      if (error.message === 'No valid auth token found') {
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 100);
+        return rejectWithValue('No authentication found');
+      }
+      return handleAuthError(error, rejectWithValue);
+    }
+  }
+);
+
+const profileSlice = createSlice({
+  name: 'profile',
+  initialState: {
+    profiles: getProfilesListFromStorage(),
+    currentProfile: getProfileFromStorage(),
+    loading: false,
+    error: null,
+    lastFetch: null
+  },
+  reducers: {
+    clearProfileState: (state) => {
+      state.profiles = [];
+      state.currentProfile = null;
+      state.error = null;
+      state.lastFetch = null;
+      localStorage.removeItem(PROFILE_STORAGE_KEY);
+      localStorage.removeItem(PROFILES_LIST_STORAGE_KEY);
+    },
+    clearProfileError: (state) => {
+      state.error = null;
+    },
+    setCurrentProfile: (state, action) => {
+      state.currentProfile = action.payload;
+      saveProfileToStorage(action.payload);
+    },
+    initializeProfileFromStorage: (state) => {
+      state.currentProfile = getProfileFromStorage();
+      state.profiles = getProfilesListFromStorage();
+    }
+  },
+  extraReducers: (builder) => {
+    builder
+      // Fetch all profiles
+      .addCase(fetchAllProfiles.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchAllProfiles.fulfilled, (state, action) => {
+        state.loading = false;
+        state.profiles = Array.isArray(action.payload) ? action.payload : [];
+        state.lastFetch = Date.now();
+        state.error = null;
+      })
+      .addCase(fetchAllProfiles.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      
+      // Fetch single profile
+      .addCase(fetchProfile.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchProfile.fulfilled, (state, action) => {
+        state.loading = false;
+        state.currentProfile = action.payload;
+        state.error = null;
+        
+        // Update in profiles array if it exists
+        if (action.payload?.uid) {
+          const index = state.profiles.findIndex(p => p.uid === action.payload.uid);
+          if (index !== -1) {
+            state.profiles[index] = action.payload;
+          }
+        }
+      })
+      .addCase(fetchProfile.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      
+      // Update profile
+      .addCase(updateProfile.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(updateProfile.fulfilled, (state, action) => {
+        state.loading = false;
+        state.currentProfile = action.payload;
+        state.error = null;
+        
+        // Update in profiles array if it exists
+        if (action.payload?.uid) {
+          const index = state.profiles.findIndex(p => p.uid === action.payload.uid);
+          if (index !== -1) {
+            state.profiles[index] = action.payload;
+          }
+        }
+      })
+      .addCase(updateProfile.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      
+      // Create profile
+      .addCase(createProfile.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(createProfile.fulfilled, (state, action) => {
+        state.loading = false;
+        state.currentProfile = action.payload;
+        state.error = null;
+        
+        // Add to profiles array
+        if (action.payload) {
+          state.profiles.push(action.payload);
+        }
+      })
+      .addCase(createProfile.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      });
+  }
+});
+
+export const { 
+  clearProfileState, 
+  clearProfileError, 
+  setCurrentProfile,
+  initializeProfileFromStorage
+} = profileSlice.actions;
+
+export default profileSlice.reducer;
