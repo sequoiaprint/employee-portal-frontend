@@ -4,12 +4,15 @@ import { initializeAuth } from './redux/auth/auth';
 import { initializeProfileFromStorage } from './redux/profile/profile';
 import { useDispatch } from 'react-redux';
 import ProtectedRoute from './component/Global/ProtectedRoute';
-import Routing from './pages/Routing/Routing';
+
 import Home from './pages/Home/Home';
 import Profile from './pages/Profile/Profile';
 import EditProfile from './pages/Profile/EditProfile';
 import Login from './pages/Login/Login';
 import News from './pages/News/News';
+import Insights from './pages/Insights/Insights';
+import HrHub from './pages/HrHub/HrHub';
+import Resources from './pages/Resources/Resources';
 const App = () => {
   const dispatch = useDispatch();
 
@@ -33,10 +36,13 @@ const App = () => {
         <Route path="/login" element={<Login />} />
         <Route element={<ProtectedRoute />}>
           <Route path="/" element={<Home />} />
-          <Route path="/routing" element={<Routing />} />
+        
           <Route path="/profile" element={<Profile />} />
           <Route path="/profile/edit" element={<EditProfile />} />
           <Route path='/news' element={<News/>}/>
+          <Route path='/insights' element={<Insights/>}/>
+          <Route path='/hr' element={<HrHub/>}/>
+           <Route path='/resources' element={<Resources/>}/>
         </Route>
       </Routes>
     </Router>

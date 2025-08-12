@@ -1,128 +1,28 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import { useSelector, useDispatch } from 'react-redux';
 import Card from '../../component/News/Card';
 import AddNews from '../../component/News/AddNews';
-import Cookies from 'js-cookie';
-import axios from 'axios';
-
-// XOR decryption function
-const xorDecrypt = (encrypted, secretKey = '28032002') => {
-  try {
-    const decoded = atob(encrypted);
-    let result = '';
-    for (let i = 0; i < decoded.length; i++) {
-      const charCode = decoded.charCodeAt(i) ^ secretKey.charCodeAt(i % secretKey.length);
-      result += String.fromCharCode(charCode);
-    }
-    return result;
-  } catch (error) {
-    console.error('Decryption failed:', error);
-    return null;
-  }
-};
+import { fetchNews, addNews, deleteNews } from '../../redux/news/news';
 
 const News = () => {
-    const [allNews, setAllNews] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
+    const dispatch = useDispatch();
+    const { items: allNews, loading, error } = useSelector(state => state.news);
     const [showAddNews, setShowAddNews] = useState(false);
     const navigate = useNavigate();
-    
-    const getAuthToken = () => {
-      const encryptedToken = Cookies.get('authToken');
-      if (!encryptedToken) {
-        return null;
-      }
-    
-      const token = xorDecrypt(encryptedToken);
-      if (!token) {
-        console.warn('Failed to decrypt auth token');
-        return null;
-      }
-    
-      return token;
-    };
-
-    const fetchAllNews = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        
-        const token = getAuthToken();
-        if (!token) {
-          setTimeout(() => {
-            window.location.href = '/login';
-          }, 100);
-          return;
-        }
-
-        const response = await axios.get(
-          'http://localhost:9000/api/news',
-          {
-            headers: { Authorization: `Bearer ${token}` },
-            timeout: 15000
-          }
-        );
-        
-        setAllNews(response.data.data || []);
-      } catch (error) {
-        console.error('Error fetching news:', error);
-        if (error.response?.status === 401 || error.response?.status === 403) {
-          // Clear all auth data
-          const cookiesToClear = ['authToken', 'adam', 'eve', 'tokenExpiration', 'userUid'];
-          cookiesToClear.forEach(cookie => {
-            Cookies.remove(cookie, { path: '/' });
-          });
-          localStorage.removeItem('authToken');
-          setTimeout(() => {
-            window.location.href = '/login';
-          }, 100);
-        } else {
-          setError(error.response?.data?.message || error.message || 'Failed to fetch news');
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
-const handleNewsDeleted = (id) => {
-    setAllNews((prevNews) => prevNews.filter((news) => news.id !== id));
-  };
-    const createNewsUpdate = async (newsData) => {
-      try {
-        const token = getAuthToken();
-        if (!token) {
-          setTimeout(() => {
-            window.location.href = '/login';
-          }, 100);
-          return;
-        }
-
-        const response = await axios.post(
-          'http://localhost:9000/api/news',
-          newsData,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-            timeout: 15000
-          }
-        );
-        
-        setAllNews(prev => [response.data.data, ...prev]);
-        return true;
-      } catch (error) {
-        console.error('Error creating news:', error);
-        return false;
-      }
-    };
-
+    //console.log(allNews)
     // Fetch news data when component mounts
     useEffect(() => {
-      fetchAllNews();
-    }, []);
+      dispatch(fetchNews());
+    }, [dispatch]);
 
-    // Handle adding new news
+    const handleNewsDeleted = (id) => {
+      dispatch(deleteNews(id));
+    };
+
     const handleNewsAdded = async (newNews) => {
-      const success = await createNewsUpdate(newNews);
-      if (success) {
+      const result = await dispatch(addNews(newNews));
+      if (result.payload) {
         setShowAddNews(false);
       }
     };
@@ -168,7 +68,7 @@ const handleNewsDeleted = (id) => {
                     <h3 className="text-xl font-medium text-gray-800 mt-4">Error loading news</h3>
                     <p className="text-gray-600 mt-2">{error}</p>
                     <button
-                        onClick={fetchAllNews}
+                        onClick={() => dispatch(fetchNews())}
                         className="mt-4 inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-medium rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-300"
                     >
                         Retry
@@ -233,7 +133,7 @@ const handleNewsDeleted = (id) => {
             {/* News Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
                 {allNews.map((news) => (
-                    <Card key={news.id} news={news} onDeleted={handleNewsDeleted}  />
+                    <Card key={news.id} news={news} onDeleted={handleNewsDeleted} />
                 ))}
             </div>
 

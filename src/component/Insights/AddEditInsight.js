@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useSelector } from 'react-redux';
-import PhotoUploader from '../Global/uploader';
 import axios from 'axios';
 import Cookies from 'js-cookie';
+import PhotoUploader from '../Global/uploader';
 
 // XOR decryption function
 const xorDecrypt = (encrypted, secretKey = '28032002') => {
@@ -42,35 +42,32 @@ const getAuthToken = () => {
   }
 };
 
-const AddEditNews = ({ 
-  editingNews = null, // Pass existing news data for editing
-  onNewsAdded, 
-  onNewsUpdated,
+const AddEditInsight = ({ 
+  editingInsight = null,
+  onInsightUpdated, 
+  onInsightAdded,
   onClose 
 }) => {
   const { user } = useSelector((state) => state.auth);
   const { currentProfile } = useSelector((state) => state.profile);
   
-  const isEditMode = !!editingNews;
+  const isEditMode = !!editingInsight;
   
-  // Initialize form data based on mode
   const [formData, setFormData] = useState({
-    title: editingNews?.title || '',
-    body: editingNews?.body || '',
-    imageUrls: editingNews?.urls ? editingNews.urls.split(',').filter(url => url.trim()) : [],
+    title: editingInsight?.title || '',
+    body: editingInsight?.body || '',
+    urls: editingInsight?.urls ? editingInsight.urls.split(',').filter(url => url.trim()) : [],
+    tags: editingInsight?.tags || '',
   });
   
   const [localLoading, setLocalLoading] = useState(false);
   const [errors, setErrors] = useState({});
   
-  // Use a single ref to track submission state
   const submissionState = useRef({
     isSubmitting: false,
     lastSubmissionTime: 0,
     abortController: null
   });
-
-  const fullName = currentProfile ? `${currentProfile.firstname || ''} ${currentProfile.lastname || ''}`.trim() : user?.name || 'Anonymous';
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -87,23 +84,32 @@ const AddEditNews = ({
     }
   };
 
-  const handleImageUploadSuccess = (url) => {
-    if (!formData.imageUrls.includes(url)) {
-      if (formData.imageUrls.length < 4) {
-        setFormData(prev => ({
-          ...prev,
-          imageUrls: [...prev.imageUrls, url]
-        }));
-      } else {
-        setErrors({ submit: 'Maximum of 4 images allowed' });
-      }
-    }
-  };
-
-  const removeImageUrl = (index) => {
+  // Handle successful image upload
+  const handleUploadSuccess = (fileUrl) => {
     setFormData(prev => ({
       ...prev,
-      imageUrls: prev.imageUrls.filter((_, i) => i !== index)
+      urls: [...prev.urls, fileUrl]
+    }));
+  };
+
+  // Handle image removal
+  const removeImageUrl = (index) => {
+    setFormData(prev => {
+      const newUrls = [...prev.urls];
+      newUrls.splice(index, 1);
+      return {
+        ...prev,
+        urls: newUrls
+      };
+    });
+  };
+
+  // Handle upload error
+  const handleUploadError = (error) => {
+    console.error('Upload error:', error);
+    setErrors(prev => ({
+      ...prev,
+      submit: `Image upload failed: ${error}`
     }));
   };
 
@@ -115,7 +121,7 @@ const AddEditNews = ({
     }
     
     if (!formData.body.trim()) {
-      newErrors.body = 'Body is required';
+      newErrors.body = 'Content is required';
     }
 
     setErrors(newErrors);
@@ -126,33 +132,28 @@ const AddEditNews = ({
     e.preventDefault();
     e.stopPropagation();
 
-    // Prevent multiple submissions
     if (submissionState.current.isSubmitting) {
       console.log('Submission blocked - already processing');
       return;
     }
 
-    // Validate form
     if (!validateForm()) {
       return;
     }
 
-    // Set submission state
     submissionState.current.isSubmitting = true;
     submissionState.current.lastSubmissionTime = Date.now();
     setLocalLoading(true);
 
-    // Cancel any existing request
     if (submissionState.current.abortController) {
       submissionState.current.abortController.abort();
     }
     
-    // Create new abort controller
     submissionState.current.abortController = new AbortController();
     
     try {
       if (!currentProfile?.uid) {
-        throw new Error('User profile not found - cannot create/update news');
+        throw new Error('User profile not found - cannot create/update insight');
       }
 
       const token = getAuthToken();
@@ -160,64 +161,63 @@ const AddEditNews = ({
         throw new Error('No authentication found');
       }
 
-      const newsData = {
+      const insightData = {
         title: formData.title.trim(),
         body: formData.body.trim(),
-        urls: formData.imageUrls.join(','),
+        urls: formData.urls.join(','), // Join URLs with commas
+        tags: formData.tags.trim(),
         createdBy: currentProfile.uid
       };
 
       let response;
       
       if (isEditMode) {
-        // Update existing news
         response = await axios.put(
-          `http://localhost:9000/api/news/${editingNews.id}`,
-          newsData,
+          `http://localhost:9000/api/insight/${editingInsight.id}`,
+          insightData,
           {
             headers: { Authorization: `Bearer ${token}` },
+            signal: submissionState.current.abortController.signal
           }
         );
       } else {
-        // Create new news
         response = await axios.post(
-          'http://localhost:9000/api/news',
-          newsData,
+          `http://localhost:9000/api/insight/${currentProfile.uid}`,
+          insightData,
           {
             headers: { Authorization: `Bearer ${token}` },
+            signal: submissionState.current.abortController.signal
           }
         );
       }
 
-      const resultNews = response.data?.data || response.data;
+      const resultInsight = response.data;
       
-      // Reset form only for add mode
       if (!isEditMode) {
         setFormData({
           title: '',
           body: '',
-          imageUrls: []
+          urls: [],
+          tags: ''
         });
       }
       
-      // Call appropriate callbacks
-      if (isEditMode && onNewsUpdated) {
-        onNewsUpdated(resultNews);
-      } else if (!isEditMode && onNewsAdded) {
-        onNewsAdded(resultNews);
+      if (isEditMode && onInsightUpdated) {
+        onInsightUpdated(resultInsight);
+      } else if (!isEditMode && onInsightAdded) {
+        onInsightAdded(resultInsight);
       }
       
       if (onClose) onClose();
       
     } catch (error) {
-      // Ignore aborted requests
       if (axios.isCancel(error)) {
         return;
       }
       
-      console.error(`Error ${isEditMode ? 'updating' : 'creating'} news:`, error);
+      console.error(`Error ${isEditMode ? 'updating' : 'creating'} insight:`, error);
       
-      let errorMessage = `Failed to ${isEditMode ? 'update' : 'create'} news. Please try again.`;
+      let errorMessage = `Failed to ${isEditMode ? 'update' : 'create'} insight. Please try again.`;
       
       if (error.response) {
         if (error.response.status === 401 || error.response.status === 403) {
@@ -243,14 +243,12 @@ const AddEditNews = ({
       
       setErrors({ submit: errorMessage });
     } finally {
-      // Reset submission state
       submissionState.current.isSubmitting = false;
       submissionState.current.abortController = null;
       setLocalLoading(false);
     }
   };
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (submissionState.current.abortController) {
@@ -266,7 +264,7 @@ const AddEditNews = ({
         <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-6 rounded-t-xl">
           <div className="flex items-center justify-between">
             <h2 className="text-2xl font-bold text-white">
-              {isEditMode ? 'Edit News' : 'Add News'}
+              {isEditMode ? 'Edit Insight' : 'Add Insight'}
             </h2>
             <button
               type="button"
@@ -281,31 +279,14 @@ const AddEditNews = ({
           </div>
           <p className="text-blue-100 mt-2">
             {isEditMode 
-              ? 'Update your company news and announcements' 
-              : 'Share the latest company updates and announcements'
+              ? 'Update your industry insight and analysis' 
+              : 'Share your knowledge and strategic analysis'
             }
           </p>
         </div>
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {/* Author Info */}
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
-                <span className="text-white font-medium">
-                  {fullName.charAt(0)?.toUpperCase() || 'U'}
-                </span>
-              </div>
-              <div>
-                <p className="font-medium text-gray-900">
-                  {isEditMode ? 'Updating as' : 'Publishing as'}
-                </p>
-                <p className="text-sm text-gray-600">{fullName}</p>
-              </div>
-            </div>
-          </div>
-
           {/* Title */}
           <div>
             <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-2">
@@ -320,7 +301,7 @@ const AddEditNews = ({
               className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                 errors.title ? 'border-red-500' : 'border-gray-300'
               }`}
-              placeholder="Enter news title..."
+              placeholder="Enter insight title..."
               maxLength={255}
               disabled={localLoading}
             />
@@ -341,10 +322,27 @@ const AddEditNews = ({
               className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y ${
                 errors.body ? 'border-red-500' : 'border-gray-300'
               }`}
-              placeholder="Write your news content here..."
+              placeholder="Write your insight content here..."
               disabled={localLoading}
             />
             {errors.body && <p className="mt-1 text-sm text-red-600">{errors.body}</p>}
+          </div>
+
+          {/* Tags */}
+          <div>
+            <label htmlFor="tags" className="block text-sm font-medium text-gray-700 mb-2">
+              Tags (comma separated)
+            </label>
+            <input
+              type="text"
+              id="tags"
+              name="tags"
+              value={formData.tags}
+              onChange={handleInputChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="e.g., marketing, strategy, technology"
+              disabled={localLoading}
+            />
           </div>
 
           {/* Image Upload */}
@@ -354,33 +352,33 @@ const AddEditNews = ({
             </label>
             
             {/* Photo Uploader */}
-            {formData.imageUrls.length < 4 && (
+            {formData.urls.length < 4 && (
               <PhotoUploader
-                onUploadSuccess={handleImageUploadSuccess}
-                onUploadError={(error) => setErrors({ submit: error })}
+                onUploadSuccess={handleUploadSuccess}
+                onUploadError={handleUploadError}
                 accept="image/*"
                 disabled={localLoading}
               >
                 <div className={`flex flex-col items-center justify-center p-4 border-2 border-dashed rounded-lg transition-colors cursor-pointer ${
                   localLoading ? 'border-gray-200 bg-gray-50' : 'border-gray-300 hover:border-blue-500'
                 }`}>
-                  <svg className="w-8 h-8 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-8 h-8 mb-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                   </svg>
-                  <p className="text-sm">Click to upload or drag and drop</p>
-                  <p className="text-xs">PNG, JPG, GIF up to 2MB</p>
+                  <p className="text-sm text-gray-600">Click to upload or drag and drop</p>
+                  <p className="text-xs text-gray-500">PNG, JPG, GIF up to 2MB</p>
                 </div>
               </PhotoUploader>
             )}
 
             {/* Preview uploaded images */}
-            {formData.imageUrls.length > 0 && (
+            {formData.urls.length > 0 && (
               <div className="mt-4 space-y-3">
                 <h4 className="text-sm font-medium text-gray-700">
                   {isEditMode ? 'Current Images:' : 'Uploaded Images:'}
                 </h4>
                 <div className="grid grid-cols-2 gap-3">
-                  {formData.imageUrls.map((url, index) => (
+                  {formData.urls.map((url, index) => (
                     <div key={index} className="relative group">
                       <img
                         src={url}
@@ -441,7 +439,7 @@ const AddEditNews = ({
                   {isEditMode ? 'Updating...' : 'Publishing...'}
                 </div>
               ) : (
-                isEditMode ? 'Update News' : 'Publish News'
+                isEditMode ? 'Update Insight' : 'Publish Insight'
               )}
             </button>
           </div>
@@ -451,4 +449,4 @@ const AddEditNews = ({
   );
 };
 
-export default AddEditNews;
+export default AddEditInsight;

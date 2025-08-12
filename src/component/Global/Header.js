@@ -30,10 +30,10 @@ const Header = ({ isSidebarCollapsed }) => {
         return 'DASHBOARD';
       case '/news':
         return 'News';
-      case '/projects':
-        return 'Projects';
-      case '/reports':
-        return 'Reports';
+      case '/insights':
+        return 'Insights';
+      case '/hr':
+        return 'Hr Hub';
       case '/settings':
         return 'Settings';
       case '/routing':
@@ -69,7 +69,7 @@ const Header = ({ isSidebarCollapsed }) => {
   };
 
   return (
-    <header className="bg-[#eb772b] shadow-lg border-b border-gray-100 sticky top-0 z-30 backdrop-blur-sm bg-white/95">
+    <header className="bg-[#eb772b] shadow-lg border-b border-gray-100 sticky top-0 z-30 backdrop-blur-sm ">
       <div className="h-20 px-4 sm:px-6">
         {/* Mobile Layout */}
         <div className="md:hidden flex flex-col justify-center h-full">

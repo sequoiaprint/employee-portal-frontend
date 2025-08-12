@@ -1,17 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { fetchProfile } from '../../redux/profile/profile'; // Import the profile action
+import { fetchProfile } from '../../redux/profile/profile';
+import { fetchNews } from '../../redux/news/news';
+import { getAllInsights } from '../../redux/Insights/Insights'; // Import news actions
 import Cookies from 'js-cookie';
 
 const Home = () => {
     const { user } = useSelector((state) => state.auth);
-    const { currentProfile, loading } = useSelector((state) => state.profile); // Get profile data
+    const { currentProfile, loading } = useSelector((state) => state.profile);
+    const { items: newsItems, loading: newsLoading } = useSelector((state) => state.news);
+    const { insights} = useSelector((state) => state.insight);
+
     const dispatch = useDispatch();
     const location = useLocation();
     const navigate = useNavigate();
    
     const fullName = currentProfile ? `${currentProfile.firstname || ''} ${currentProfile.lastname || ''}`.trim() : user?.name || '';
+    
     // Fetch profile data when component mounts or user changes
     useEffect(() => {
       if (user?.uid) {
@@ -22,7 +28,48 @@ const Home = () => {
       }
     }, [dispatch, user?.uid]);
 
+    // Fetch news data when component mounts
+    useEffect(() => {
+      dispatch(fetchNews());
+    }, [dispatch]);
 
+    useEffect(() => {
+      dispatch(getAllInsights());
+    }, [dispatch]);
+    // Format date function
+    const formatDate = (dateString) => {
+      if (!dateString) return 'N/A';
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-US', {
+        month: 'numeric',
+        day: 'numeric',
+        year: 'numeric'
+      });
+    };
+
+    // Get first 3 news items
+    const displayNews = newsItems?.slice(0, 3) || [];
+   
+    const firstNewsImage = displayNews.length > 0 && displayNews[0].urls 
+      ? displayNews[0].urls.split(',')[0] 
+      : null;
+
+
+    const displayInsights=insights?.slice(0,3) || [];
+    const firstInsightsImage = displayInsights.length > 0 && displayInsights[0].urls 
+      ? displayInsights[0].urls.split(',')[0] 
+      : null;
+
+    // Handle view more news
+    const handleViewMoreNews = () => {
+      navigate('/news');
+    };
+    const handleViewMoreInsights = () => {
+  navigate('/insights');
+};
+const handleViewMoreHr=()=>{
+    navigate('/hr');
+}
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-6 font-sans">
       {/* Header with background image and welcome text */}
@@ -51,18 +98,18 @@ const Home = () => {
             </div>
             <div className="flex items-center space-x-2 bg-white/10 backdrop-blur-sm px-3 py-1.5 rounded-full transition-all duration-300 hover:scale-105 hover:bg-white/20">
               <span className="w-3 h-3 rounded-full bg-sky-500 inline-block"></span>
-              <span>3 recent updates</span>
+              <span>{newsItems.length} News</span>
             </div>
             <div className="flex items-center space-x-2 bg-white/10 backdrop-blur-sm px-3 py-1.5 rounded-full transition-all duration-300 hover:scale-105 hover:bg-white/20">
               <span className="w-3 h-3 rounded-full bg-yellow-400 inline-block"></span>
-              <span>3 industry insights</span>
+              <span>{insights.length} industry insights</span>
             </div>
           </div>
         </div>
       </header>
 
       {/* Grid for the four content cards */}
-      <main className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <main className="grid grid-cols-1 md:grid-cols-4 gap-6">
         {/* News & Updates */}
         <section className="bg-white rounded-xl shadow-lg p-6 space-y-4 border border-gray-100 transition-all duration-300 hover:border-orange-100 hover:shadow-xl hover:-translate-y-1">
           <div className="flex justify-between items-center">
@@ -92,36 +139,61 @@ const Home = () => {
               </div>
             </div>
             <span className="bg-pink-100 text-pink-700 px-3 py-0.5 text-xs font-semibold rounded-full shadow-sm transition-all duration-300 hover:scale-105">
-              3 New
+              {displayNews.length} {displayNews.length === 1 ? 'News' : 'News'}
             </span>
           </div>
 
+          {/* Cover Image */}
           <div className="aspect-[16/7] w-full overflow-hidden rounded-lg shadow-sm mb-3 border border-gray-200 transition-all duration-500 hover:shadow-md">
-            <img
-              src="https://storage.googleapis.com/workspace-0f70711f-8b4e-4d94-86f1-2a93ccde5887/image/665644ca-a7a0-4e7a-b2b2-831b0860e457.png"
-              alt="A printing plant with workers and machinery actively operating with boxes and packing line"
-              className="w-full h-full object-cover object-center transition-transform duration-500 hover:scale-105"
-              onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src="https://storage.googleapis.com/workspace-0f70711f-8b4e-4d94-86f1-2a93ccde5887/image/9f869bfa-1e6f-47ee-bedd-3e53606db05b.png"; }}
-            />
+            {firstNewsImage ? (
+              <img
+                src={firstNewsImage}
+                alt={displayNews[0]?.title || 'News image'}
+                className="w-full h-full object-cover object-center transition-transform duration-500 hover:scale-105"
+                onError={(e) => { 
+                  e.currentTarget.src = "https://storage.googleapis.com/workspace-0f70711f-8b4e-4d94-86f1-2a93ccde5887/image/665644ca-a7a0-4e7a-b2b2-831b0860e457.png";
+                }}
+              />
+            ) : (
+              <img
+                src="https://storage.googleapis.com/workspace-0f70711f-8b4e-4d94-86f1-2a93ccde5887/image/665644ca-a7a0-4e7a-b2b2-831b0860e457.png"
+                alt="Default news image"
+                className="w-full h-full object-cover object-center transition-transform duration-500 hover:scale-105"
+              />
+            )}
           </div>
 
-          <ul className="space-y-3 border-l-4 border-orange-500 pl-4 text-sm text-gray-700">
-            <li className="transition-colors duration-200 hover:text-orange-700">
-              <strong className="block font-semibold">
-                Sequoia Print Launches New Eco-Friendly Packaging Line
-              </strong>
-              <small className="block text-gray-400">Published 1/15/2024</small>
-            </li>
-            <li className="transition-colors duration-200 hover:text-orange-700">
-              <strong>Q4 2023 Performance Highlights</strong>
-              <small className="block text-gray-400">Published 1/10/2024</small>
-            </li>
-            <li className="transition-colors duration-200 hover:text-orange-700">
-              <strong>New Digital Printing Technology Acquisition</strong>
-              <small className="block text-gray-400">Published 1/5/2024</small>
-            </li>
-          </ul>
+          {/* News List */}
+          {newsLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
+              <span className="ml-2 text-gray-600">Loading news...</span>
+            </div>
+          ) : displayNews.length > 0 ? (
+            <ul className="space-y-3 border-l-4 border-orange-500 pl-4 text-sm text-gray-700">
+              {displayNews.map((news, index) => (
+                <li key={news.id || index} className="transition-colors duration-200 hover:text-orange-700">
+                  <strong className="block font-semibold line-clamp-2">
+                    {news.title || 'Untitled News'}
+                  </strong>
+                  <small className="block text-gray-400">
+                    Published {formatDate(news.created_at)}
+                  </small>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              <svg className="w-12 h-12 mx-auto mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 20H5a2 2 0 01-2-2V5a2 2 0 012-2h14a2 2 0 012 2v15a2 2 0 01-2 2z"></path>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 10l-4-4-4 4"></path>
+              </svg>
+              <p>No news available</p>
+            </div>
+          )}
+
           <button
+            onClick={handleViewMoreNews}
             aria-label="View News & Updates details"
             className="text-orange-500 font-semibold hover:text-orange-700 flex items-center gap-1 text-sm mt-3 transition-all duration-300 hover:translate-x-1"
           >
@@ -141,87 +213,115 @@ const Home = () => {
         </section>
 
         {/* Insights & Trends */}
-        <section className="bg-white rounded-xl shadow-lg p-6 space-y-4 border border-gray-100 transition-all duration-300 hover:border-blue-100 hover:shadow-xl hover:-translate-y-1">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center space-x-3">
-              <span className="inline-block p-2 rounded-full bg-blue-100 shadow-sm transition-all duration-300 hover:bg-blue-200">
-                <svg
-                  className="w-6 h-6 text-blue-600"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  viewBox="0 0 24 24"
-                  xmlns="http://www.w3.org/2000/svg"
-                  aria-hidden="true"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M13 10V3L4 14h7v7l9-11h-7z"
-                  ></path>
-                </svg>
-              </span>
-              <div>
-                <h2 className="font-semibold text-gray-900 text-lg leading-snug">
-                  Insights & Trends
-                </h2>
-                <p className="text-gray-500 text-sm">Industry knowledge and analysis</p>
-              </div>
-            </div>
-            <span className="bg-blue-100 text-blue-700 px-3 py-0.5 text-xs font-semibold rounded-full shadow-sm transition-all duration-300 hover:scale-105">
-              Featured
-            </span>
+<section className="bg-white rounded-xl shadow-lg p-6 space-y-4 border border-gray-100 transition-all duration-300 hover:border-blue-100 hover:shadow-xl hover:-translate-y-1">
+  <div className="flex justify-between items-center">
+    <div className="flex items-center space-x-3">
+      <span className="inline-block p-2 rounded-full bg-blue-100 shadow-sm transition-all duration-300 hover:bg-blue-200">
+        <svg
+          className="w-6 h-6 text-blue-600"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          viewBox="0 0 24 24"
+          xmlns="http://www.w3.org/2000/svg"
+          aria-hidden="true"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M13 10V3L4 14h7v7l9-11h-7z"
+          ></path>
+        </svg>
+      </span>
+      <div>
+        <h2 className="font-semibold text-gray-900 text-lg leading-snug">
+          Insights & Trends
+        </h2>
+        <p className="text-gray-500 text-sm">Industry knowledge and analysis</p>
+      </div>
+    </div>
+    <span className="bg-blue-100 text-blue-700 px-3 py-0.5 text-xs font-semibold rounded-full shadow-sm transition-all duration-300 hover:scale-105">
+      {displayInsights.length} {displayInsights.length === 1 ? 'Insight' : 'Insights'}
+    </span>
+  </div>
+
+  {/* Cover Image */}
+  <div className="aspect-[16/7] w-full overflow-hidden rounded-lg shadow-sm mb-3 border border-gray-200 transition-all duration-500 hover:shadow-md">
+    {firstInsightsImage ? (
+      <img
+        src={firstInsightsImage}
+        alt={displayInsights[0]?.title || 'Insights image'}
+        className="w-full h-full object-cover object-center transition-transform duration-500 hover:scale-105"
+        onError={(e) => { 
+          e.currentTarget.src = "https://storage.googleapis.com/workspace-0f70711f-8b4e-4d94-86f1-2a93ccde5887/image/665644ca-a7a0-4e7a-b2b2-831b0860e457.png";
+        }}
+      />
+    ) : (
+      <img
+        src="https://storage.googleapis.com/workspace-0f70711f-8b4e-4d94-86f1-2a93ccde5887/image/665644ca-a7a0-4e7a-b2b2-831b0860e457.png"
+        alt="Default insights image"
+        className="w-full h-full object-cover object-center transition-transform duration-500 hover:scale-105"
+      />
+    )}
+  </div>
+
+  {/* Insights Content */}
+  {insights?.length > 0 ? (
+    <>
+      {/* Featured Insight (First one with detailed view) */}
+      {displayInsights[0] && (
+        <div className="bg-blue-50 rounded-lg p-3 text-sm leading-relaxed border border-blue-100 transition-colors duration-200 hover:border-blue-200">
+          <strong className="block mb-1 text-blue-800 line-clamp-2">
+            {displayInsights[0].title || 'Untitled Insight'}
+          </strong>
+          <p className="text-gray-700 mb-2 line-clamp-2">
+            {displayInsights[0].description || displayInsights[0].summary || 'Industry analysis and insights'}
+          </p>
+          <div className="flex flex-wrap gap-3 text-xs font-medium text-blue-600">
+            <span className="bg-blue-200 rounded-full px-2 py-0.5 shadow-sm">Featured</span>
+            <span>Published {formatDate(displayInsights[0].created_at)}</span>
           </div>
+        </div>
+      )}
 
-          <div className="aspect-[16/7] w-full overflow-hidden rounded-lg shadow-sm mb-3 border border-gray-200 transition-all duration-500 hover:shadow-md">
-            <img
-              src="https://storage.googleapis.com/workspace-0f70711f-8b4e-4d94-86f1-2a93ccde5887/image/1e2b632a-2593-4b0c-86a6-78ddd1a321d8.png"
-              alt="A modern office meeting room with diverse group of professionals collaborating around laptops with coffee and notes"
-              className="w-full h-full object-cover object-center transition-transform duration-500 hover:scale-105"
-              onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src="https://placehold.co/800x350?text=Image+not+available"; }}
-            />
-          </div>
+      {/* List of Insights */}
+      <ul className="text-gray-700 space-y-2 text-sm font-semibold">
+        {displayInsights.map((insight, index) => (
+          <li key={insight.id || index} className="transition-colors duration-200 hover:text-blue-700 flex items-center">
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-500 mr-2"></span>
+            <span className="line-clamp-1">{insight.title || 'Untitled Insight'}</span>
+          </li>
+        ))}
+      </ul>
+    </>
+  ) : (
+    <div className="text-center py-8 text-gray-500">
+      <svg className="w-12 h-12 mx-auto mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+      </svg>
+      <p>No insights available</p>
+    </div>
+  )}
 
-          <div className="bg-blue-50 rounded-lg p-3 text-sm leading-relaxed border border-blue-100 transition-colors duration-200 hover:border-blue-200">
-            <strong className="block mb-1 text-blue-800">The Future of Sustainable Printing</strong>
-            <p className="text-gray-700 mb-2">
-              Industry analysis on sustainable printing trends and practices
-            </p>
-            <div className="flex flex-wrap gap-3 text-xs font-medium text-blue-600">
-              <span className="bg-blue-200 rounded-full px-2 py-0.5 shadow-sm">Trending</span>
-              <span>8 min read</span>
-            </div>
-          </div>
-
-          <ul className="text-gray-700 space-y-2 text-sm font-semibold">
-            <li className="transition-colors duration-200 hover:text-blue-700 flex items-center">
-              <span className="w-1.5 h-1.5 rounded-full bg-blue-500 mr-2"></span>
-              The Future of Sustainable Printing
-            </li>
-            <li className="transition-colors duration-200 hover:text-blue-700 flex items-center">
-              <span className="w-1.5 h-1.5 rounded-full bg-blue-500 mr-2"></span>
-              Digital Transformation in Print Manufacturing
-            </li>
-          </ul>
-
-          <button
-            aria-label="View Insights & Trends details"
-            className="text-blue-600 font-semibold hover:text-blue-800 flex items-center gap-1 text-sm mt-3 transition-all duration-300 hover:translate-x-1"
-          >
-            View more
-            <svg
-              className="w-4 h-4 transition-all duration-300 group-hover:translate-x-1"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              viewBox="0 0 24 24"
-              xmlns="http://www.w3.org/2000/svg"
-              aria-hidden="true"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"></path>
-            </svg>
-          </button>
-        </section>
+  <button
+    onClick={handleViewMoreInsights}
+    aria-label="View Insights & Trends details"
+    className="text-blue-600 font-semibold hover:text-blue-800 flex items-center gap-1 text-sm mt-3 transition-all duration-300 hover:translate-x-1"
+  >
+    View more
+    <svg
+      className="w-4 h-4 transition-all duration-300 group-hover:translate-x-1"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      viewBox="0 0 24 24"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"></path>
+    </svg>
+  </button>
+</section>
 
         {/* Client Portfolio */}
         <section className="bg-white rounded-xl shadow-lg p-6 space-y-4 border border-gray-100 transition-all duration-300 hover:border-purple-100 hover:shadow-xl hover:-translate-y-1">
@@ -341,6 +441,7 @@ const Home = () => {
 
           <button
             aria-label="View HR Hub details"
+             onClick={handleViewMoreHr}
             className="text-green-700 font-semibold hover:text-green-900 flex items-center gap-1 text-sm mt-3 transition-all duration-300 hover:translate-x-1"
           >
             View more

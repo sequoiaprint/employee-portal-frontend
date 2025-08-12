@@ -2,13 +2,15 @@
 import { configureStore } from '@reduxjs/toolkit';
 import authReducer from './auth/auth';
 import profileReducer from './profile/profile';
-// import newsReducer from './news/news';
+import newsSlice from './news/news';
+import insightReducer from './Insights/Insights';
 
 export const store = configureStore({
   reducer: {
     auth: authReducer,
     profile: profileReducer,
-   // news: newsReducer
+    news: newsSlice,
+    insight: insightReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

@@ -65,40 +65,52 @@ const handleLogout = async () => {
       path: '/news'
     },
     {
-      id: 'projects',
-      label: 'Projects',
+      id: 'Insights',
+      label: 'Insights',
       icon: (
         <img 
-          src="https://img.icons8.com/fluency/48/project-management.png" 
-          alt="projects" 
+          src="https://img.icons8.com/avantgarde/100/combo-chart.png" 
+          alt="Insights" 
           className="w-4 h-4 sm:w-5 sm:h-5"
         />
       ),
-      path: '/projects'
+      path: '/insights'
     },
     {
-      id: 'reports',
-      label: 'Reports',
+      id: 'HR',
+      label: 'HR Hub',
       icon: (
         <img 
-          src="https://img.icons8.com/fluency/48/bar-chart.png" 
+          src="https://img.icons8.com/external-flaticons-lineal-color-flat-icons/64/external-consulting-human-resources-flaticons-lineal-color-flat-icons.png" 
           alt="reports" 
           className="w-4 h-4 sm:w-5 sm:h-5"
         />
       ),
-      path: '/reports'
+      path: '/hr'
     },
     {
-      id: 'settings',
-      label: 'Settings',
+      id: 'All Resources',
+      label: 'Resources',
       icon: (
         <img 
-          src="https://img.icons8.com/fluency/48/settings.png" 
+          src="https://img.icons8.com/external-flaticons-lineal-color-flat-icons/64/external-links-live-streaming-flaticons-lineal-color-flat-icons-2.png" 
           alt="settings" 
           className="w-4 h-4 sm:w-5 sm:h-5"
         />
       ),
-      path: '/settings'
+      path: '/resources'
+    },
+    {
+      id: 'Manage',
+      label: 'Manage Your employee',
+      icon: (
+        <img 
+          src="https://img.icons8.com/stickers/100/admin-settings-male.png" 
+          alt="settings" 
+          className="w-4 h-4 sm:w-5 sm:h-5"
+        />
+      ),
+      path: '/manage'
     }
   ];
 
