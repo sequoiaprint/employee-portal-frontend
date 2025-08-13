@@ -13,6 +13,7 @@ import News from './pages/News/News';
 import Insights from './pages/Insights/Insights';
 import HrHub from './pages/HrHub/HrHub';
 import Resources from './pages/Resources/Resources';
+import ManagePage from './pages/Manage/Manage';
 const App = () => {
   const dispatch = useDispatch();
 
@@ -43,6 +44,7 @@ const App = () => {
           <Route path='/insights' element={<Insights/>}/>
           <Route path='/hr' element={<HrHub/>}/>
            <Route path='/resources' element={<Resources/>}/>
+           <Route path='/manage' element={<ManagePage/>}/>
         </Route>
       </Routes>
     </Router>

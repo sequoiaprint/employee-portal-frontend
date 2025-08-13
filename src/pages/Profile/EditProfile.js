@@ -8,18 +8,18 @@ import PhotoUploader from '../../component/Global/uploader';
 const EditProfile = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  
+
   // Get user data from auth state
   const { user } = useSelector((state) => state.auth);
   // Get profile data from profile state
   const { currentProfile, loading: profileLoading, error: profileError } = useSelector((state) => state.profile);
-  
+
   // Initialize form data
   const getInitialData = () => {
-     const fullName = `${currentProfile.firstname || ''} ${currentProfile.lastname || ''}`.trim();
     return {
-      username:currentProfile.username,
-      name: fullName || '',
+      username: currentProfile.username || '',
+      firstname: currentProfile.firstname || '',
+      lastname: currentProfile.lastname || '',
       email: currentProfile?.email || '',
       phone: currentProfile?.phonno || '',
       department: currentProfile?.department || '',
@@ -95,16 +95,13 @@ const EditProfile = () => {
     setFormData(prev => ({
       ...prev,
       profilepicurl: imageUrl
-      
     }));
-    console.log(formData);
     setHasChanges(true);
     setUploadError('');
   };
 
   const handleImageUploadError = (error) => {
     setUploadError(error);
-    // Clear error after 5 seconds
     setTimeout(() => setUploadError(''), 5000);
   };
 
@@ -119,10 +116,16 @@ const EditProfile = () => {
   const validateForm = () => {
     const newErrors = {};
 
-    if (!formData.name.trim()) {
-      newErrors.name = 'Name is required';
-    } else if (formData.name.trim().length < 2) {
-      newErrors.name = 'Name must be at least 2 characters';
+    if (!formData.firstname.trim()) {
+      newErrors.firstname = 'First name is required';
+    } else if (formData.firstname.trim().length < 2) {
+      newErrors.firstname = 'First name must be at least 2 characters';
+    }
+
+    if (!formData.lastname.trim()) {
+      newErrors.lastname = 'Last name is required';
+    } else if (formData.lastname.trim().length < 2) {
+      newErrors.lastname = 'Last name must be at least 2 characters';
     }
 
     if (!formData.email.trim()) {
@@ -168,15 +171,25 @@ const EditProfile = () => {
     setIsSubmitting(true);
 
     try {
+      // Format the joinDate properly before sending
+      let formattedJoinDate = formData.joinDate;
+      if (formData.joinDate && !formData.joinDate.includes('T')) {
+        // If it's just a date without time, add default time
+        formattedJoinDate = new Date(formData.joinDate).toISOString();
+      }
+
       await dispatch(updateProfile({
         uid: user.uid,
         profileData: {
+          firstname: formData.firstname,
+          lastname: formData.lastname,
           phone: formData.phone,
           department: formData.department,
-          position: formData.position,
+          designation: formData.position,
           location: formData.location,
           bio: formData.bio,
-          profilepicurl: formData.profilepicurl
+          profilepicurl: formData.profilepicurl,
+          joindate: formattedJoinDate
         }
       })).unwrap();
 
@@ -193,7 +206,6 @@ const EditProfile = () => {
       }, 2000);
     } catch (error) {
       console.error('Failed to update profile:', error);
-      // Error is already handled by Redux
     } finally {
       setIsSubmitting(false);
     }
@@ -207,23 +219,15 @@ const EditProfile = () => {
     navigate('/profile');
   };
 
-  const formatTime = (time) => {
-  const [hour, minute] = time.split(':').map(Number);
-  const ampm = hour >= 12 ? 'PM' : 'AM';
-  const hour12 = hour % 12 || 12;
-  return `${hour12}:${minute.toString().padStart(2, '0')} ${ampm}`;
-};
-
-// Format ISO date to readable format
-const formatDate = (isoDate) => {
-  if (!isoDate) return 'N/A';
-  const date = new Date(isoDate);
-  return date.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
-};
+  const formatDate = (isoDate) => {
+    if (!isoDate) return 'N/A';
+    const date = new Date(isoDate);
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  };
 
   if (profileLoading && !currentProfile) {
     return (
@@ -302,12 +306,12 @@ const formatDate = (isoDate) => {
             <div className="flex flex-col items-center md:w-1/3 space-y-6">
               <ProfileAvatar
                 image={formData.profilepicurl}
-                name={formData.name}
+                name={`${formData.firstname} ${formData.lastname}`}
                 size="xlarge"
                 showInitials={false}
                 className="rounded-full border-4 border-[#EA7125] shadow-lg"
               />
-              
+
               {/* Upload Section */}
               <div className="space-y-4 w-full">
                 <PhotoUploader
@@ -319,7 +323,7 @@ const formatDate = (isoDate) => {
                     Choose Image
                   </div>
                 </PhotoUploader>
-                
+
                 {formData.profilepicurl && (
                   <button
                     type="button"
@@ -329,7 +333,7 @@ const formatDate = (isoDate) => {
                     Remove Image
                   </button>
                 )}
-                
+
                 <p className="text-sm text-gray-600 text-center">JPG, GIF or PNG. Max size 2MB</p>
               </div>
             </div>
@@ -341,30 +345,35 @@ const formatDate = (isoDate) => {
                 <h2 className="text-xl font-semibold text-[#EA7125] mb-6 border-l-4 border-[#EA7125] pl-4">Personal Information</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Full Name*</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">First Name*</label>
                     <input
-                      name="name"
-                      value={formData.name}
+                      name="firstname"
+                      value={formData.firstname}
                       onChange={handleInputChange}
-                      className={`w-full px-4 py-3 rounded-lg border focus:ring-2 focus:ring-[#EA7125] focus:border-[#EA7125] transition-all ${
-                        errors.name ? 'border-red-500' : 'border-gray-300'
-                      }`}
-                      disabled // Name might come from auth and not be editable here
+                      className={`w-full px-4 py-3 rounded-lg border focus:ring-2 focus:ring-[#EA7125] focus:border-[#EA7125] transition-all ${errors.firstname ? 'border-red-500' : 'border-gray-300'
+                        }`}
                     />
-                    {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name}</p>}
+                    {errors.firstname && <p className="mt-1 text-sm text-red-600">{errors.firstname}</p>}
                   </div>
-                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Username*</label>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Last Name*</label>
                     <input
-                      name="name"
-                      value={formData.username}
+                      name="lastname"
+                      value={formData.lastname}
                       onChange={handleInputChange}
-                      className={`w-full px-4 py-3 rounded-lg border focus:ring-2 focus:ring-[#EA7125] focus:border-[#EA7125] transition-all ${
-                        errors.name ? 'border-red-500' : 'border-gray-300'
-                      }`}
-                      disabled // Name might come from auth and not be editable here
+                      className={`w-full px-4 py-3 rounded-lg border focus:ring-2 focus:ring-[#EA7125] focus:border-[#EA7125] transition-all ${errors.lastname ? 'border-red-500' : 'border-gray-300'
+                        }`}
                     />
-                    {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name}</p>}
+                    {errors.lastname && <p className="mt-1 text-sm text-red-600">{errors.lastname}</p>}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Username</label>
+                    <input
+                      name="username"
+                      value={formData.username}
+                      readOnly
+                      className="w-full px-4 py-3 rounded-lg border border-gray-300 bg-gray-100 cursor-not-allowed"
+                    />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Email*</label>
@@ -373,10 +382,8 @@ const formatDate = (isoDate) => {
                       name="email"
                       value={formData.email}
                       onChange={handleInputChange}
-                      className={`w-full px-4 py-3 rounded-lg border focus:ring-2 focus:ring-[#EA7125] focus:border-[#EA7125] transition-all ${
-                        errors.email ? 'border-red-500' : 'border-gray-300'
-                      }`}
-                    
+                      className={`w-full px-4 py-3 rounded-lg border focus:ring-2 focus:ring-[#EA7125] focus:border-[#EA7125] transition-all ${errors.email ? 'border-red-500' : 'border-gray-300'
+                        }`}
                     />
                     {errors.email && <p className="mt-1 text-sm text-red-600">{errors.email}</p>}
                   </div>
@@ -387,9 +394,8 @@ const formatDate = (isoDate) => {
                       name="phone"
                       value={formData.phone}
                       onChange={handleInputChange}
-                      className={`w-full px-4 py-3 rounded-lg border focus:ring-2 focus:ring-[#EA7125] focus:border-[#EA7125] transition-all ${
-                        errors.phone ? 'border-red-500' : 'border-gray-300'
-                      }`}
+                      className={`w-full px-4 py-3 rounded-lg border focus:ring-2 focus:ring-[#EA7125] focus:border-[#EA7125] transition-all ${errors.phone ? 'border-red-500' : 'border-gray-300'
+                        }`}
                     />
                     {errors.phone && <p className="mt-1 text-sm text-red-600">{errors.phone}</p>}
                   </div>
@@ -399,9 +405,8 @@ const formatDate = (isoDate) => {
                       name="location"
                       value={formData.location}
                       onChange={handleInputChange}
-                      className={`w-full px-4 py-3 rounded-lg border focus:ring-2 focus:ring-[#EA7125] focus:border-[#EA7125] transition-all ${
-                        errors.location ? 'border-red-500' : 'border-gray-300'
-                      }`}
+                      className={`w-full px-4 py-3 rounded-lg border focus:ring-2 focus:ring-[#EA7125] focus:border-[#EA7125] transition-all ${errors.location ? 'border-red-500' : 'border-gray-300'
+                        }`}
                     />
                     {errors.location && <p className="mt-1 text-sm text-red-600">{errors.location}</p>}
                   </div>
@@ -427,20 +432,19 @@ const formatDate = (isoDate) => {
                       name="position"
                       value={formData.position}
                       onChange={handleInputChange}
-                      className={`w-full px-4 py-3 rounded-lg border focus:ring-2 focus:ring-[#EA7125] focus:border-[#EA7125] transition-all ${
-                        errors.position ? 'border-red-500' : 'border-gray-300'
-                      }`}
+                      className={`w-full px-4 py-3 rounded-lg border focus:ring-2 focus:ring-[#EA7125] focus:border-[#EA7125] transition-all ${errors.position ? 'border-red-500' : 'border-gray-300'
+                        }`}
                     />
                     {errors.position && <p className="mt-1 text-sm text-red-600">{errors.position}</p>}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Join Date</label>
                     <input
+                      type="date"
                       name="joinDate"
-                      value={formatDate(formData.joinDate)}
+                      value={formData.joinDate ? formData.joinDate.split('T')[0] : ''}
                       onChange={handleInputChange}
                       className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#EA7125] focus:border-[#EA7125] transition-all"
-                      disabled
                     />
                   </div>
                 </div>
@@ -454,16 +458,14 @@ const formatDate = (isoDate) => {
                   rows={5}
                   value={formData.bio}
                   onChange={handleInputChange}
-                  className={`w-full px-4 py-3 rounded-lg border focus:ring-2 focus:ring-[#EA7125] focus:border-[#EA7125] transition-all resize-none ${
-                    errors.bio ? 'border-red-500' : 'border-gray-300'
-                  }`}
+                  className={`w-full px-4 py-3 rounded-lg border focus:ring-2 focus:ring-[#EA7125] focus:border-[#EA7125] transition-all resize-none ${errors.bio ? 'border-red-500' : 'border-gray-300'
+                    }`}
                   placeholder="Tell us about yourself..."
                 />
                 <div className="flex justify-between mt-1">
                   {errors.bio && <p className="text-sm text-red-600">{errors.bio}</p>}
-                  <span className={`text-xs ml-auto ${
-                    formData.bio?.length > 500 ? 'text-red-600' : 'text-gray-500'
-                  }`}>
+                  <span className={`text-xs ml-auto ${formData.bio?.length > 500 ? 'text-red-600' : 'text-gray-500'
+                    }`}>
                     {formData.bio?.length || 0}/500
                   </span>
                 </div>
@@ -481,11 +483,10 @@ const formatDate = (isoDate) => {
                 <button
                   type="submit"
                   disabled={!hasChanges || isSubmitting}
-                  className={`w-full sm:w-auto px-8 py-3 rounded-lg text-white transition-colors ${
-                    hasChanges && !isSubmitting
+                  className={`w-full sm:w-auto px-8 py-3 rounded-lg text-white transition-colors ${hasChanges && !isSubmitting
                       ? 'bg-[#EA7125] hover:bg-[#F58E3F]'
                       : 'bg-[#EA7125] bg-opacity-50 cursor-not-allowed'
-                  }`}
+                    }`}
                 >
                   {isSubmitting ? (
                     <span className="flex items-center justify-center">

@@ -12,17 +12,23 @@ import { fetchProfile } from '../../redux/profile/profile';
 const Profile = () => {
   const dispatch = useDispatch();
   const { user } = useSelector((state) => state.auth);
-//  console.log(user)
   const { currentProfile, loading, error } = useSelector((state) => state.profile);
   const location = useLocation();
   const [showSuccessMessage, setShowSuccessMessage] = React.useState(false);
-//console.log(currentProfile)
-  // Fetch profile data when component mounts or user changes
+
+  // Extract uid from URL query params
+  const queryParams = new URLSearchParams(location.search);
+  const uidFromUrl = queryParams.get('uid');
+
+  // Determine which uid to use: URL uid (if provided) or authenticated user's uid
+  const targetUid = uidFromUrl || user?.uid;
+
+  // Fetch profile data when component mounts or targetUid changes
   useEffect(() => {
-    if (user?.uid) {
-      dispatch(fetchProfile(user.uid));
+    if (targetUid) {
+      dispatch(fetchProfile(targetUid));
     }
-  }, [dispatch, user?.uid]);
+  }, [dispatch, targetUid]);
 
   // Handle success message from EditProfile
   useEffect(() => {
@@ -40,41 +46,39 @@ const Profile = () => {
     }
   }, [location.state]);
    
-
   // Format profile data for components
-const getProfileData = () => {
-  if (currentProfile) {
-    const fullName = `${currentProfile.firstname || ''} ${currentProfile.lastname || ''}`.trim();
+  const getProfileData = () => {
+    if (currentProfile) {
+      const fullName = `${currentProfile.firstname || ''} ${currentProfile.lastname || ''}`.trim();
+
+      return {
+        name: fullName || user?.name || 'N/A',
+        email: currentProfile.email || user?.email || 'N/A',
+        phone: currentProfile.phonno || 'N/A',
+        department: currentProfile.department || 'N/A',
+        position: currentProfile.position || 'N/A',
+        location: currentProfile.location || 'N/A',
+        joinDate: currentProfile.joindate || 'N/A',
+        bio: currentProfile.bio || 'N/A',
+        profileImage: currentProfile.profilepicurl || null,
+        EmployeeID: currentProfile.uid || 'N/A',
+        manager: currentProfile.manager,
+        work_schedule: currentProfile.work_schedule
+      };
+    }
 
     return {
-      name: fullName || user?.name || 'John Doe',
-      email: currentProfile.email || user?.email || 'john.doe@sequoia.com',
-      phone: currentProfile.phonno || '+1 (555) 123-4567',
-      department: currentProfile.department || 'Engineering',
-      position: currentProfile.position || 'Senior Developer',
-      location: currentProfile.location || 'San Francisco, CA',
-      joinDate: currentProfile.joindate || 'January 15, 2022',
-      bio: currentProfile.bio || 'Passionate software developer with experience in full-stack development.',
-      profileImage: currentProfile.profilepicurl || null,
-      EmployeeID: currentProfile.uid || 'EMP-2024-001',
-      manager:currentProfile.manager,
-      work_schedule:currentProfile.work_schedule
+      name: user?.name || 'John Doe',
+      email: user?.email || 'john.doe@sequoia.com',
+      phone: '+1 (555) 123-4567',
+      department: 'Engineering',
+      position: 'Senior Developer',
+      location: 'San Francisco, CA',
+      joinDate: 'January 15, 2022',
+      bio: 'Passionate software developer with experience in full-stack development.',
+      profileImage: null
     };
-  }
-
-  return {
-    name: user?.name || 'John Doe',
-    email: user?.email || 'john.doe@sequoia.com',
-    phone: '+1 (555) 123-4567',
-    department: 'Engineering',
-    position: 'Senior Developer',
-    location: 'San Francisco, CA',
-    joinDate: 'January 15, 2022',
-    bio: 'Passionate software developer with experience in full-stack development.',
-    profileImage: null
   };
-};
-
 
   const formData = getProfileData();
 

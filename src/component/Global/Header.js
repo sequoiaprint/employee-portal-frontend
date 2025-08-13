@@ -34,8 +34,8 @@ const Header = ({ isSidebarCollapsed }) => {
         return 'Insights';
       case '/hr':
         return 'Hr Hub';
-      case '/settings':
-        return 'Settings';
+      case '/manage':
+        return 'Manage';
       case '/routing':
         return 'Routing';
       case '/profile':
