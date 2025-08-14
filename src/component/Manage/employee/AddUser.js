@@ -39,9 +39,12 @@ const handleSubmit = async (e) => {
       role: formData.role
     };
 
+    // Create the new profile
     await dispatch(createProfile(profileData)).unwrap();
-    // Add this line to refresh the employee list
+    
+    // Refresh the profiles list
     await dispatch(fetchAllProfiles());
+    
     onClose();
   } catch (err) {
     setError(err.message || 'Failed to create user');

@@ -56,7 +56,7 @@ const Profile = () => {
         email: currentProfile.email || user?.email || 'N/A',
         phone: currentProfile.phonno || 'N/A',
         department: currentProfile.department || 'N/A',
-        position: currentProfile.position || 'N/A',
+        position: currentProfile.designation || 'N/A',
         location: currentProfile.location || 'N/A',
         joinDate: currentProfile.joindate || 'N/A',
         bio: currentProfile.bio || 'N/A',

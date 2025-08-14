@@ -10,7 +10,7 @@ const UserSelect = ({ value, onChange, disabled = false }) => {
     error: state.profile.error
   }));
   console.log(value)
-  
+
   // Fetch profiles only if they haven't been loaded yet
   useEffect(() => {
     if (profiles.length === 0 && !loading) {
@@ -38,16 +38,19 @@ const UserSelect = ({ value, onChange, disabled = false }) => {
   return (
     <select
       value={value}
-      onChange={(e) => onChange(e.target.value)}
+      onChange={(e) => {
+        const selectedProfile = profiles.find(p => p.uid === e.target.value);
+        onChange(e.target.value, selectedProfile);
+      }}
       className="w-full p-2 border rounded"
       disabled={disabled || loading}
     >
       <option value="">Select a user</option>
       {profiles.map((profile) => (
         <option key={profile.uid} value={profile.uid}>
-          {[profile.firstname, profile.lastname].filter(Boolean).join(' ') || 
-           profile.username || 
-           profile.uid}
+          {[profile.firstname, profile.lastname].filter(Boolean).join(' ') ||
+            profile.username ||
+            profile.uid}
         </option>
       ))}
     </select>

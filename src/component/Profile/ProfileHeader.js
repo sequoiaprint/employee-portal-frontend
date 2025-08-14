@@ -4,6 +4,7 @@ import ProfileAvatar from './ProfileAvatar';
 
 const ProfileHeader = ({ formData }) => {
   const navigate = useNavigate();
+  console.log(formData)
 
   const handleEditClick = () => {
     navigate('/profile/edit');

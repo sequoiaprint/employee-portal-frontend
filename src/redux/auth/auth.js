@@ -44,6 +44,8 @@ const clearAuthData = () => {
     Cookies.remove(cookie, { path: '/' });
   });
   localStorage.removeItem('authToken');
+  localStorage.removeItem('userProfile');
+  localStorage.removeItem('profilesList');
 };
 
 const authSlice = createSlice({

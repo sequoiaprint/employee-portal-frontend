@@ -4,22 +4,23 @@ import { useNavigate } from 'react-router-dom';
 import { profilepicurlUpload, ProfileAvatar } from '../../component/Profile';
 import { fetchProfile, updateProfile } from '../../redux/profile/profile';
 import PhotoUploader from '../../component/Global/uploader';
+import Cookies from 'js-cookie';
 
 const EditProfile = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-
-  // Get user data from auth state
+  
+  // Get UID from cookies first, then fall back to Redux auth state
+  const [uid, setUid] = useState(Cookies.get('userUid') || '');
   const { user } = useSelector((state) => state.auth);
-  // Get profile data from profile state
   const { currentProfile, loading: profileLoading, error: profileError } = useSelector((state) => state.profile);
 
   // Initialize form data
   const getInitialData = () => {
     return {
-      username: currentProfile.username || '',
-      firstname: currentProfile.firstname || '',
-      lastname: currentProfile.lastname || '',
+      username: currentProfile?.username || '',
+      firstname: currentProfile?.firstname || '',
+      lastname: currentProfile?.lastname || '',
       email: currentProfile?.email || '',
       phone: currentProfile?.phonno || '',
       department: currentProfile?.department || '',
@@ -38,16 +39,30 @@ const EditProfile = () => {
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [uploadError, setUploadError] = useState('');
 
-  // Fetch profile data when component mounts
+  // Set UID from cookies or Redux when component mounts
   useEffect(() => {
-    if (user?.uid) {
-      dispatch(fetchProfile(user.uid));
+    const cookieUid = Cookies.get('userUid');
+    if (cookieUid) {
+      setUid(cookieUid);
+    } else if (user?.uid) {
+      setUid(user.uid);
+      // Also set in cookies for future use
+      Cookies.set('userUid', user.uid, { expires: 7, path: '/' });
     }
-  }, [dispatch, user?.uid]);
+  }, [user?.uid]);
+
+  // Fetch profile data when UID changes
+  useEffect(() => {
+    if (uid) {
+      console.log('Fetching profile for UID:', uid);
+      dispatch(fetchProfile(uid));
+    }
+  }, [dispatch, uid]);
 
   // Update form data when profile data changes
   useEffect(() => {
     if (currentProfile) {
+      console.log('Updating form data with profile:', currentProfile);
       setFormData(getInitialData());
     }
   }, [currentProfile]);
@@ -155,8 +170,7 @@ const EditProfile = () => {
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
-
-  const handleSave = async (e) => {
+const handleSave = async (e) => {
     e.preventDefault();
 
     if (!validateForm()) {
@@ -171,15 +185,14 @@ const EditProfile = () => {
     setIsSubmitting(true);
 
     try {
-      // Format the joinDate properly before sending
       let formattedJoinDate = formData.joinDate;
       if (formData.joinDate && !formData.joinDate.includes('T')) {
-        // If it's just a date without time, add default time
         formattedJoinDate = new Date(formData.joinDate).toISOString();
       }
 
+      // Use the UID from state (which comes from cookies or Redux)
       await dispatch(updateProfile({
-        uid: user.uid,
+        uid: uid, // Changed from user.uid to uid
         profileData: {
           firstname: formData.firstname,
           lastname: formData.lastname,
@@ -210,6 +223,7 @@ const EditProfile = () => {
       setIsSubmitting(false);
     }
   };
+
 
   const handleCancel = () => {
     if (hasChanges) {

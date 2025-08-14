@@ -156,23 +156,42 @@ export const fetchProfile = createAsyncThunk(
   async (uid, { rejectWithValue }) => {
     try {
       if (!uid) {
+        console.error('Profile fetch: No UID provided');
         return rejectWithValue('User ID is required');
       }
 
+      console.log('Fetching profile for UID:', uid);
       const config = createAuthConfig();
       const response = await axios.get(`http://localhost:9000/api/profiles/${uid}`, config);
 
-      const profileData = response.data?.data || response.data;
+      console.log('Profile API response:', response.data);
 
-      // Save to localStorage
+      // Handle different response structures
+      let profileData;
+      if (response.data && typeof response.data === 'object') {
+        profileData = response.data.data || response.data;
+      } else {
+        console.error('Unexpected profile response structure:', response.data);
+        return rejectWithValue('Invalid profile data structure');
+      }
+
+      if (!profileData) {
+        console.warn('Profile fetch: Empty profile data received');
+        return rejectWithValue('No profile data received');
+      }
+
+      // Ensure the profile has a uid
+      if (!profileData.uid) {
+        profileData.uid = uid;
+      }
+
+      console.log('Processed profile data:', profileData);
       saveProfileToStorage(profileData);
-
       return profileData;
     } catch (error) {
+      console.error('Profile fetch error:', error);
       if (error.message === 'No valid auth token found') {
-        setTimeout(() => {
-          window.location.href = '/login';
-        }, 100);
+        setTimeout(() => window.location.href = '/login', 100);
         return rejectWithValue('No authentication found');
       }
       return handleAuthError(error, rejectWithValue);
@@ -237,7 +256,7 @@ export const createProfile = createAsyncThunk(
       const newProfile = response.data?.data || response.data;
 
       // Save to localStorage
-      saveProfileToStorage(newProfile);
+      //saveProfileToStorage(newProfile);
 
       return newProfile;
     } catch (error) {
@@ -403,13 +422,27 @@ const profileSlice = createSlice({
       })
       .addCase(fetchProfile.fulfilled, (state, action) => {
         state.loading = false;
-        updateProfileInState(state, action.payload);
+        if (action.payload) {
+          state.currentProfile = action.payload;
+          saveProfileToStorage(action.payload);
+
+          // Update in profiles array if exists
+          const index = state.profiles.findIndex(p => p.uid === action.payload.uid);
+          if (index !== -1) {
+            state.profiles[index] = action.payload;
+          } else {
+            state.profiles.push(action.payload);
+          }
+          saveProfilesListToStorage(state.profiles);
+        }
         state.error = null;
       })
       .addCase(fetchProfile.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
+        console.error('Profile fetch failed:', action.payload);
       })
+
 
       // Update profile
       .addCase(updateProfile.pending, (state) => {
@@ -433,10 +466,9 @@ const profileSlice = createSlice({
       })
       .addCase(createProfile.fulfilled, (state, action) => {
         state.loading = false;
-        state.currentProfile = action.payload;
         state.error = null;
 
-        // Add to profiles array
+        // Only add to profiles array, don't set as currentProfile or save to localStorage
         if (action.payload) {
           state.profiles.push(action.payload);
           saveProfilesListToStorage(state.profiles);
