@@ -112,22 +112,22 @@ const authSlice = createSlice({
         state.error = action.payload;
         state.isAuthenticated = false;
       })
-      .addCase(validateToken.pending, (state) => {
-        state.isLoading = true;
-      })
-      .addCase(validateToken.fulfilled, (state, action) => {
-        state.isLoading = false;
-        state.token = action.payload.token;
-        state.user = action.payload.user;
-        state.isAuthenticated = true;
-        state.error = null;
-      })
-      .addCase(validateToken.rejected, (state) => {
-        state.isLoading = false;
-        state.isAuthenticated = false;
-        state.token = null;
-        state.user = null;
-      });
+      // .addCase(validateToken.pending, (state) => {
+      //   state.isLoading = true;
+      // })
+      // .addCase(validateToken.fulfilled, (state, action) => {
+      //   state.isLoading = false;
+      //   state.token = action.payload.token;
+      //   state.user = action.payload.user;
+      //   state.isAuthenticated = true;
+      //   state.error = null;
+      // })
+      // .addCase(validateToken.rejected, (state) => {
+      //   state.isLoading = false;
+      //   state.isAuthenticated = false;
+      //   state.token = null;
+      //   state.user = null;
+      // });
   }
 });
 
@@ -185,47 +185,47 @@ export const login = createAsyncThunk(
   }
 );
 
-export const validateToken = createAsyncThunk(
-  'auth/validateToken',
-  async (_, { rejectWithValue }) => {
-    try {
-      const encryptedToken = Cookies.get('authToken') || localStorage.getItem('authToken');
-      if (!encryptedToken) {
-        return rejectWithValue('No token found');
-      }
+// export const validateToken = createAsyncThunk(
+//   'auth/validateToken',
+//   async (_, { rejectWithValue }) => {
+//     try {
+//       const encryptedToken = Cookies.get('authToken') 
+//       if (!encryptedToken) {
+//         return rejectWithValue('No token found');
+//       }
 
-      const token = xorDecrypt(encryptedToken);
-      if (!token) {
-        return rejectWithValue('Invalid token format');
-      }
+//       const token = xorDecrypt(encryptedToken);
+//       if (!token) {
+//         return rejectWithValue('Invalid token format');
+//       }
 
-      const response = await axios.get(`${API_URL}/validate`, {
-        headers: { Authorization: `Bearer ${token}` },
-        timeout: 10000 // 10 second timeout
-      });
+//       const response = await axios.get(`${API_URL}/validate`, {
+//         headers: { Authorization: `Bearer ${token}` },
+//         timeout: 10000 // 10 second timeout
+//       });
       
-      return {
-        token,
-        user: response.data.user || response.data.data?.user
-      };
-    } catch (error) {
-      console.error('Token validation failed:', error);
+//       return {
+//         token,
+//         user: response.data.user || response.data.data?.user
+//       };
+//     } catch (error) {
+//       console.error('Token validation failed:', error);
       
-      // Only clear auth data if the error is specifically an auth error
-      if (error.response?.status === 401) {
-        clearAuthData();
-      }
+//       // Only clear auth data if the error is specifically an auth error
+//       if (error.response?.status === 401) {
+//         clearAuthData();
+//       }
       
-      if (error.code === 'ECONNABORTED') {
-        return rejectWithValue('Connection timeout');
-      }
+//       if (error.code === 'ECONNABORTED') {
+//         return rejectWithValue('Connection timeout');
+//       }
       
-      return rejectWithValue(
-        error.response?.data?.message || 'Token validation failed'
-      );
-    }
-  }
-);
+//       return rejectWithValue(
+//         error.response?.data?.message || 'Token validation failed'
+//       );
+//     }
+//   }
+// );
 
 export const logout = createAsyncThunk(
   'auth/logout',
@@ -261,8 +261,8 @@ export const initializeAuth = createAsyncThunk(
         
         if (token) {
           // Validate the token
-          const result = await dispatch(validateToken()).unwrap();
-          return result;
+         // const result = await dispatch(validateToken()).unwrap();
+          //return result;
         }
       }
       

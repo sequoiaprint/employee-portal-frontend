@@ -20,6 +20,18 @@ const ProtectedRoute = () => {
   }
 
   if (!isLoading && !hasToken && !isAuthenticated) {
+    // Remove specific items from localStorage
+    localStorage.removeItem('activeTab');
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('profilesList');
+    localStorage.removeItem('userProfile');
+
+    // Remove specific cookies
+    Cookies.remove('adam');
+    Cookies.remove('eve');
+    Cookies.remove('userUid');
+    Cookies.remove('authToken'); // remove this too just in case
+
     return <Navigate to="/login" replace />;
   }
 

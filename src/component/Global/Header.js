@@ -52,6 +52,8 @@ const Header = ({ isSidebarCollapsed }) => {
       case '/manage': return 'Manage';
       case '/routing': return 'Routing';
       case '/profile': return 'Profile';
+      case '/clients': return 'Clients';
+      case '/projects': return 'Projects';
       default: return 'Dashboard';
     }
   };

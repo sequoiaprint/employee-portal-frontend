@@ -1,30 +1,35 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save } from 'lucide-react';
+import { X, Save, Sparkles, Plus, Trash2, Check, ChevronUp, ChevronDown, CheckCircle, Circle } from 'lucide-react';
 import Cookies from 'js-cookie';
 import PhotoUploader from '../../Global/uploader';
-import TeamSelect from '../../Global/TeamSelect'; // Adjust import path
-import ClientSelect from '../../Global/ClientSelect'; // Adjust import path
+import TeamSelect from '../../Global/TeamSelect';
+import ClientSelect from '../../Global/ClientSelect';
 
 const ProjectForm = ({ project, onSubmit, onCancel, operationStatus, operationError }) => {
   const [formData, setFormData] = useState({
     name: '',
-    clients: '', // This will now store client ID
+    clients: '',
     start_date: '',
     expected_end_date: '',
     target_end_date: '',
     status: 'Not Started',
     priority: 'Medium',
     job_no: '',
-    assigned_team: '', // This will now store team ID
+    assigned_team: '',
     goals: '',
     description: '',
-    progress: 0,
-    urls: []
+    urls: [],
+    milestones: [],
+    milestones_status: []
   });
   const [imageUrls, setImageUrls] = useState([]);
   const [uid] = useState(Cookies.get('userUid') || '');
+  const [isGeneratingMilestones, setIsGeneratingMilestones] = useState(false);
+  const [milestoneError, setMilestoneError] = useState(null);
+  const [newMilestone, setNewMilestone] = useState('');
+  const [generatedMilestones, setGeneratedMilestones] = useState([]);
+  const [showGeneratedMilestones, setShowGeneratedMilestones] = useState(false);
 
-  // Convert string URLs to array
   const normalizeUrls = (urls) => {
     if (!urls) return [];
     if (Array.isArray(urls)) return urls;
@@ -34,24 +39,71 @@ const ProjectForm = ({ project, onSubmit, onCancel, operationStatus, operationEr
     return [];
   };
 
+  const normalizeMilestones = (milestones) => {
+    if (!milestones) return [];
+    if (Array.isArray(milestones)) return milestones;
+    if (typeof milestones === 'string') {
+      return milestones.split(',').map(milestone => milestone.trim()).filter(milestone => milestone);
+    }
+    return [];
+  };
+
+  const normalizeMilestoneStatus = (statuses) => {
+    if (!statuses) return [];
+    if (Array.isArray(statuses)) return statuses.map(status => parseInt(status));
+    if (typeof statuses === 'string') {
+      return statuses.split(',').map(status => parseInt(status.trim())).filter(status => !isNaN(status));
+    }
+    return [];
+  };
+
+  const formatDateForInput = (dateString) => {
+    if (!dateString) return '';
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return dateString;
+    
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return '';
+    
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    
+    return `${year}-${month}-${day}`;
+  };
+
+  const formatDateForBackend = (dateString) => {
+    if (!dateString) return null;
+    const date = new Date(dateString);
+    date.setHours(12, 0, 0, 0);
+    return date.toISOString();
+  };
+
   useEffect(() => {
     if (project) {
       const normalizedUrls = normalizeUrls(project.urls);
+      const normalizedMilestones = normalizeMilestones(project.milestones);
+      const normalizedStatuses = normalizeMilestoneStatus(project.milestones_status);
+      
+      // Ensure status array matches milestone array length
+      const statusArray = normalizedMilestones.map((_, index) => 
+        normalizedStatuses[index] !== undefined ? normalizedStatuses[index] : 0
+      );
       
       setFormData({
         name: project.name || '',
-        clients: project.clients || '', // Assuming this is already the ID
-        start_date: project.start_date || '',
-        expected_end_date: project.expected_end_date || '',
-        target_end_date: project.target_end_date || '',
+        clients: project.clients || '',
+        start_date: formatDateForInput(project.start_date),
+        expected_end_date: formatDateForInput(project.expected_end_date),
+        target_end_date: formatDateForInput(project.target_end_date),
         status: project.status || 'Not Started',
         priority: project.priority || 'Medium',
         job_no: project.job_no || '',
-        assigned_team: project.assigned_team || '', // Assuming this is already the ID
+        assigned_team: project.assigned_team || '',
         goals: project.goals || '',
         description: project.description || '',
-        progress: project.progress || 0,
-        urls: normalizedUrls
+        urls: normalizedUrls,
+        milestones: normalizedMilestones,
+        milestones_status: statusArray
       });
       
       setImageUrls(normalizedUrls);
@@ -63,11 +115,11 @@ const ProjectForm = ({ project, onSubmit, onCancel, operationStatus, operationEr
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleTeamChange = (teamId, team) => {
+  const handleTeamChange = (teamId) => {
     setFormData(prev => ({ ...prev, assigned_team: teamId }));
   };
 
-  const handleClientChange = (clientId, client) => {
+  const handleClientChange = (clientId) => {
     setFormData(prev => ({ ...prev, clients: clientId }));
   };
 
@@ -79,10 +131,178 @@ const ProjectForm = ({ project, onSubmit, onCancel, operationStatus, operationEr
     setImageUrls(prev => prev.filter((_, i) => i !== index));
   };
 
+  // Manual milestone functions
+  const addManualMilestone = () => {
+    if (!newMilestone.trim()) return;
+    
+    setFormData(prev => ({
+      ...prev,
+      milestones: [...prev.milestones, newMilestone.trim()],
+      milestones_status: [...prev.milestones_status, 0] // New milestones start as incomplete
+    }));
+    setNewMilestone('');
+  };
+
+  const deleteMilestone = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      milestones: prev.milestones.filter((_, i) => i !== index),
+      milestones_status: prev.milestones_status.filter((_, i) => i !== index)
+    }));
+  };
+
+  const editMilestone = (index, newText) => {
+    setFormData(prev => ({
+      ...prev,
+      milestones: prev.milestones.map((milestone, i) => 
+        i === index ? newText : milestone
+      )
+    }));
+  };
+
+  const toggleMilestoneStatus = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      milestones_status: prev.milestones_status.map((status, i) => 
+        i === index ? (status === 1 ? 0 : 1) : status
+      )
+    }));
+  };
+
+  const moveMilestoneUp = (index) => {
+    if (index === 0) return; // Can't move first item up
+    
+    setFormData(prev => {
+      const newMilestones = [...prev.milestones];
+      const newStatuses = [...prev.milestones_status];
+      
+      // Swap milestones
+      [newMilestones[index - 1], newMilestones[index]] = [newMilestones[index], newMilestones[index - 1]];
+      // Swap statuses
+      [newStatuses[index - 1], newStatuses[index]] = [newStatuses[index], newStatuses[index - 1]];
+      
+      return { 
+        ...prev, 
+        milestones: newMilestones,
+        milestones_status: newStatuses
+      };
+    });
+  };
+
+  const moveMilestoneDown = (index) => {
+    if (index === formData.milestones.length - 1) return; // Can't move last item down
+    
+    setFormData(prev => {
+      const newMilestones = [...prev.milestones];
+      const newStatuses = [...prev.milestones_status];
+      
+      // Swap milestones
+      [newMilestones[index], newMilestones[index + 1]] = [newMilestones[index + 1], newMilestones[index]];
+      // Swap statuses
+      [newStatuses[index], newStatuses[index + 1]] = [newStatuses[index + 1], newStatuses[index]];
+      
+      return { 
+        ...prev, 
+        milestones: newMilestones,
+        milestones_status: newStatuses
+      };
+    });
+  };
+
+  // AI milestone generation functions
+  const generateMilestones = async () => {
+    if (!formData.goals && !formData.description) {
+      setMilestoneError('Please enter project goals or description to generate milestones');
+      return;
+    }
+
+    setIsGeneratingMilestones(true);
+    setMilestoneError(null);
+
+    try {
+      const response = await fetch('http://localhost:9000/api/progress', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          projectDescription: `${formData.goals}\n${formData.description}`
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate milestones');
+      }
+
+      const data = await response.json();
+      setGeneratedMilestones(data.milestones || []);
+      setShowGeneratedMilestones(true);
+    } catch (error) {
+      console.error('Error generating milestones:', error);
+      setMilestoneError('Failed to generate milestones. Please try again.');
+    } finally {
+      setIsGeneratingMilestones(false);
+    }
+  };
+
+  const confirmGeneratedMilestone = (milestone) => {
+    setFormData(prev => ({
+      ...prev,
+      milestones: [...prev.milestones, milestone],
+      milestones_status: [...prev.milestones_status, 0] // AI milestones start as incomplete
+    }));
+    setGeneratedMilestones(prev => prev.filter(m => m !== milestone));
+  };
+
+  const confirmAllGeneratedMilestones = () => {
+    setFormData(prev => ({
+      ...prev,
+      milestones: [...prev.milestones, ...generatedMilestones],
+      milestones_status: [...prev.milestones_status, ...generatedMilestones.map(() => 0)] // All start as incomplete
+    }));
+    setGeneratedMilestones([]);
+    setShowGeneratedMilestones(false);
+  };
+
+  const discardGeneratedMilestones = () => {
+    setGeneratedMilestones([]);
+    setShowGeneratedMilestones(false);
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     const urlsToSubmit = imageUrls.join(',');
-    onSubmit({ ...formData, urls: urlsToSubmit, created_by: uid });
+    
+    // Convert milestones and statuses to comma-separated strings
+    const milestonesToSubmit = formData.milestones.join(',');
+    const statusesToSubmit = formData.milestones_status.join(',');
+    
+    // For new projects, ensure first milestone is marked as started (1) if milestones exist
+    let finalStatuses = [...formData.milestones_status];
+    if (!project && finalStatuses.length > 0) {
+      finalStatuses[0] = 1; // Mark first milestone as started for new projects
+    }
+    
+    const dataToSubmit = {
+      urls: urlsToSubmit,
+      name: formData.name,
+      start_date: formatDateForBackend(formData.start_date),
+      expected_end_date: formatDateForBackend(formData.expected_end_date),
+      status: formData.status,
+      priority: formData.priority,
+      end_date: null, // Set when project is completed
+      job_no: formData.job_no,
+      assigned_team: formData.assigned_team,
+      clients: formData.clients,
+      target_end_date: formatDateForBackend(formData.target_end_date),
+      goals: formData.goals,
+      description: formData.description,
+      created_by: uid,
+      milestones: milestonesToSubmit,
+      milestones_status: finalStatuses.join(',')
+    };
+    
+    onSubmit(dataToSubmit);
   };
 
   return (
@@ -142,6 +362,16 @@ const ProjectForm = ({ project, onSubmit, onCancel, operationStatus, operationEr
               onChange={handleChange}
               className="w-full p-2 border border-gray-300 rounded-md"
               required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Expected End Date</label>
+            <input
+              type="date"
+              name="expected_end_date"
+              value={formData.expected_end_date}
+              onChange={handleChange}
+              className="w-full p-2 border border-gray-300 rounded-md"
             />
           </div>
           <div>
@@ -207,18 +437,122 @@ const ProjectForm = ({ project, onSubmit, onCancel, operationStatus, operationEr
               rows="3"
             />
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Progress (%)</label>
-            <input
-              type="number"
-              name="progress"
-              min="0"
-              max="100"
-              value={formData.progress}
-              onChange={handleChange}
-              className="w-full p-2 border border-gray-300 rounded-md"
-            />
+          
+          {/* Milestones Section */}
+          <div className="md:col-span-2">
+            <div className="flex justify-between items-center mb-2">
+              <label className="block text-sm font-medium text-gray-700">Milestones</label>
+              <button
+                type="button"
+                onClick={generateMilestones}
+                disabled={isGeneratingMilestones}
+                className="text-sm flex items-center text-orange-600 hover:text-orange-800 disabled:text-orange-300"
+              >
+                <Sparkles className="h-4 w-4 mr-1" />
+                {isGeneratingMilestones ? 'Generating...' : 'Generate with AI'}
+              </button>
+            </div>
+            
+            {milestoneError && (
+              <div className="text-red-500 text-sm mb-2">{milestoneError}</div>
+            )}
+
+            {/* Add Manual Milestone */}
+            <div className="flex gap-2 mb-3">
+              <input
+                type="text"
+                placeholder="Add a milestone manually..."
+                value={newMilestone}
+                onChange={(e) => setNewMilestone(e.target.value)}
+                className="flex-1 p-2 border border-gray-300 rounded-md text-sm"
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    addManualMilestone();
+                  }
+                }}
+              />
+              <button
+                type="button"
+                onClick={addManualMilestone}
+                disabled={!newMilestone.trim()}
+                className="px-3 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 disabled:bg-green-300 flex items-center"
+              >
+                <Plus className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Current Milestones */}
+            {formData.milestones.length > 0 && (
+              <div className="border border-gray-200 rounded-md p-3 bg-white mb-3">
+                <h6 className="font-medium text-gray-800 mb-2 text-sm">Project Milestones</h6>
+                <div className="space-y-2">
+                  {formData.milestones.map((milestone, index) => (
+                    <MilestoneItem
+                      key={index}
+                      milestone={milestone}
+                      index={index}
+                      status={formData.milestones_status[index] || 0}
+                      totalMilestones={formData.milestones.length}
+                      onEdit={(newText) => editMilestone(index, newText)}
+                      onDelete={() => deleteMilestone(index)}
+                      onMoveUp={() => moveMilestoneUp(index)}
+                      onMoveDown={() => moveMilestoneDown(index)}
+                      onToggleStatus={() => toggleMilestoneStatus(index)}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Generated Milestones for Review */}
+            {showGeneratedMilestones && generatedMilestones.length > 0 && (
+              <div className="border border-orange-200 rounded-md p-3 bg-orange-50 mb-3">
+                <div className="flex justify-between items-center mb-2">
+                  <h6 className="font-medium text-orange-800 text-sm">AI Generated Milestones</h6>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={confirmAllGeneratedMilestones}
+                      className="text-xs px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600"
+                    >
+                      Add All
+                    </button>
+                    <button
+                      type="button"
+                      onClick={discardGeneratedMilestones}
+                      className="text-xs px-2 py-1 bg-gray-500 text-white rounded hover:bg-gray-600"
+                    >
+                      Discard
+                    </button>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  {generatedMilestones.map((milestone, index) => (
+                    <div key={index} className="flex items-center justify-between p-2 bg-white rounded border border-orange-200">
+                      <span className="text-sm text-gray-800 flex-1">{milestone}</span>
+                      <button
+                        type="button"
+                        onClick={() => confirmGeneratedMilestone(milestone)}
+                        className="ml-2 p-1 text-green-600 hover:text-green-800 hover:bg-green-100 rounded"
+                        title="Add this milestone"
+                      >
+                        <Check className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Empty State */}
+            {formData.milestones.length === 0 && !showGeneratedMilestones && (
+              <div className="text-gray-500 text-sm italic border border-gray-200 rounded-md p-3 bg-gray-50">
+                No milestones added yet. Add them manually or generate with AI.
+              </div>
+            )}
           </div>
+
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-1">Images</label>
             <PhotoUploader 
@@ -260,6 +594,133 @@ const ProjectForm = ({ project, onSubmit, onCancel, operationStatus, operationEr
           </button>
         </div>
       </form>
+    </div>
+  );
+};
+
+// Individual Milestone Item Component
+const MilestoneItem = ({ milestone, index, status, totalMilestones, onEdit, onDelete, onMoveUp, onMoveDown, onToggleStatus }) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editText, setEditText] = useState(milestone);
+
+  const handleSaveEdit = () => {
+    if (editText.trim()) {
+      onEdit(editText.trim());
+      setIsEditing(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditText(milestone);
+    setIsEditing(false);
+  };
+
+  const canMoveUp = index > 0;
+  const canMoveDown = index < totalMilestones - 1;
+  const isCompleted = status === 1;
+
+  return (
+    <div className={`flex items-center justify-between p-2 rounded border group hover:bg-gray-100 ${
+      isCompleted ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'
+    }`}>
+      {isEditing ? (
+        <div className="flex-1 flex gap-2">
+          <input
+            type="text"
+            value={editText}
+            onChange={(e) => setEditText(e.target.value)}
+            className="flex-1 p-1 border border-gray-300 rounded text-sm"
+            onKeyPress={(e) => {
+              if (e.key === 'Enter') handleSaveEdit();
+              if (e.key === 'Escape') handleCancelEdit();
+            }}
+            autoFocus
+          />
+          <button
+            type="button"
+            onClick={handleSaveEdit}
+            className="p-1 text-green-600 hover:text-green-800"
+          >
+            <Check className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={handleCancelEdit}
+            className="p-1 text-gray-600 hover:text-gray-800"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      ) : (
+        <>
+          <div className="flex items-center gap-2 flex-1">
+            <span className="text-xs text-gray-500 font-mono w-6 text-center">
+              {index + 1}.
+            </span>
+            <button
+              type="button"
+              onClick={onToggleStatus}
+              className={`p-1 rounded ${
+                isCompleted 
+                  ? 'text-green-600 hover:text-green-800' 
+                  : 'text-gray-400 hover:text-green-600'
+              }`}
+              title={isCompleted ? 'Mark as incomplete' : 'Mark as complete'}
+            >
+              {isCompleted ? <CheckCircle className="h-5 w-5" /> : <Circle className="h-5 w-5" />}
+            </button>
+            <span 
+              className={`text-sm flex-1 cursor-pointer hover:text-orange-600 ${
+                isCompleted ? 'line-through text-gray-600' : 'text-gray-800'
+              }`}
+              onClick={() => setIsEditing(true)}
+            >
+              {milestone}
+            </span>
+          </div>
+          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            {/* Move Up Button */}
+            <button
+              type="button"
+              onClick={onMoveUp}
+              disabled={!canMoveUp}
+              className={`p-1 rounded ${
+                canMoveUp 
+                  ? 'text-blue-600 hover:text-blue-800 hover:bg-blue-100' 
+                  : 'text-gray-300 cursor-not-allowed'
+              }`}
+              title="Move up"
+            >
+              <ChevronUp className="h-4 w-4" />
+            </button>
+            
+            {/* Move Down Button */}
+            <button
+              type="button"
+              onClick={onMoveDown}
+              disabled={!canMoveDown}
+              className={`p-1 rounded ${
+                canMoveDown 
+                  ? 'text-blue-600 hover:text-blue-800 hover:bg-blue-100' 
+                  : 'text-gray-300 cursor-not-allowed'
+              }`}
+              title="Move down"
+            >
+              <ChevronDown className="h-4 w-4" />
+            </button>
+            
+            {/* Delete Button */}
+            <button
+              type="button"
+              onClick={onDelete}
+              className="p-1 text-red-600 hover:text-red-800 hover:bg-red-100 rounded"
+              title="Delete milestone"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 };

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash, User as UserIcon, X, Calendar } from 'lucide-react';
+import { Plus, Trash, User as UserIcon, X, Calendar, Search } from 'lucide-react';
 import UserSelect from '../../Global/SelectProfile';
 import { useDispatch, useSelector } from 'react-redux';
 import { 
@@ -29,10 +29,53 @@ const TeamComponent = () => {
     team_member: []
   });
 
+  // Search state
+  const [isSearchExpanded, setIsSearchExpanded] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [searchField, setSearchField] = useState('team_name');
+  const [suggestions, setSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
   useEffect(() => {
     dispatch(fetchTeams());
     dispatch(fetchAllProfiles());
   }, [dispatch]);
+
+  // Generate suggestions based on search term and field
+  useEffect(() => {
+    if (searchTerm.length > 0 && teams && profiles) {
+      const filtered = teams.filter(team => {
+        let fieldValue = '';
+        
+        if (searchField === 'team_name') {
+          fieldValue = team.team_name.toLowerCase();
+        } else if (searchField === 'manager') {
+          fieldValue = getProfileInfo(team.manager).toLowerCase();
+        } else if (searchField === 'team_lead') {
+          fieldValue = getProfileInfo(team.team_lead).toLowerCase();
+        }
+        
+        return fieldValue.includes(searchTerm.toLowerCase());
+      });
+      
+      const uniqueSuggestions = [...new Set(
+        filtered.map(team => {
+          if (searchField === 'team_name') {
+            return team.team_name;
+          } else if (searchField === 'manager') {
+            return getProfileInfo(team.manager);
+          } else if (searchField === 'team_lead') {
+            return getProfileInfo(team.team_lead);
+          }
+          return '';
+        })
+      )].filter(Boolean);
+      
+      setSuggestions(uniqueSuggestions.slice(0, 5));
+    } else {
+      setSuggestions([]);
+    }
+  }, [searchTerm, searchField, teams, profiles]);
 
   // Reset form when opening/closing modal
   useEffect(() => {
@@ -132,6 +175,26 @@ const TeamComponent = () => {
     }
   };
 
+  const filteredTeams = teams ? teams.filter(team => {
+    if (!searchTerm) return true;
+    
+    let fieldValue = '';
+    if (searchField === 'team_name') {
+      fieldValue = team.team_name.toLowerCase();
+    } else if (searchField === 'manager') {
+      fieldValue = getProfileInfo(team.manager).toLowerCase();
+    } else if (searchField === 'team_lead') {
+      fieldValue = getProfileInfo(team.team_lead).toLowerCase();
+    }
+    
+    return fieldValue.includes(searchTerm.toLowerCase());
+  }) : [];
+
+  const handleSuggestionClick = (suggestion) => {
+    setSearchTerm(suggestion);
+    setShowSuggestions(false);
+  };
+
   if (teamsLoading && teams.length === 0) {
     return <div className="text-center py-8">Loading teams...</div>;
   }
@@ -148,21 +211,81 @@ const TeamComponent = () => {
     <div className="bg-white rounded-lg shadow-sm border border-orange-100 p-6">
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-lg font-semibold text-gray-900">Team Management</h3>
-        <button
-          onClick={() => {
-            setEditingTeam(null);
-            setShowAddTeam(true);
-          }}
-          className="bg-orange-500 text-white px-3 py-1 rounded-md text-sm hover:bg-orange-600 flex items-center"
-        >
-          <Plus className="h-4 w-4 inline mr-1" />
-          Create Team
-        </button>
+        <div className="flex items-center gap-4">
+          {/* Search Bar */}
+          <div className="relative">
+            <div className={`flex items-center transition-all duration-300 ${isSearchExpanded ? 'w-[600px]' : 'w-10'}`}>
+              {isSearchExpanded && (
+                <>
+                  <select
+                    value={searchField}
+                    onChange={(e) => setSearchField(e.target.value)}
+                    className="h-10 px-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-1 focus:ring-orange-500 bg-white text-sm"
+                  >
+                    <option value="team_name">Team Name</option>
+                    <option value="manager">Manager</option>
+                    <option value="team_lead">Team Lead</option>
+                  </select>
+                  <div className="relative flex-1">
+                    <input
+                      type="text"
+                      value={searchTerm}
+                      onChange={(e) => {
+                        setSearchTerm(e.target.value);
+                        setShowSuggestions(true);
+                      }}
+                      onFocus={() => setShowSuggestions(true)}
+                      onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                      placeholder="Search..."
+                      className="h-10 w-full px-3 py-2 border-t border-b border-gray-300 focus:outline-none focus:ring-1 focus:ring-orange-500 text-sm"
+                    />
+                    {showSuggestions && suggestions.length > 0 && (
+                      <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg">
+                        {suggestions.map((suggestion, index) => (
+                          <div
+                            key={index}
+                            className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm"
+                            onMouseDown={() => handleSuggestionClick(suggestion)}
+                          >
+                            {suggestion}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+              <button
+                onClick={() => {
+                  setIsSearchExpanded(!isSearchExpanded);
+                  if (isSearchExpanded) {
+                    setSearchTerm('');
+                    setShowSuggestions(false);
+                  }
+                }}
+                className={`h-10 w-10 flex items-center justify-center ${isSearchExpanded ? 'bg-orange-500 text-white rounded-r-md' : 'bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300'}`}
+              >
+                {isSearchExpanded ? <X size={18} /> : <Search size={18} />}
+              </button>
+            </div>
+          </div>
+
+          <button
+            onClick={() => {
+              setEditingTeam(null);
+              setShowAddTeam(true);
+            }}
+            className="bg-orange-500 text-white px-3 py-1 rounded-md text-sm hover:bg-orange-600 flex items-center"
+          >
+            <Plus className="h-4 w-4 inline mr-1" />
+            Create Team
+          </button>
+        </div>
       </div>
 
       {/* Teams List */}
       <div className="space-y-4">
-        {teams.map(team => (
+        {filteredTeams.map(team => (
           <div key={team.id} className="border border-gray-200 rounded-md p-4 hover:shadow-md transition-shadow">
             <div className="flex justify-between items-start">
               <div>

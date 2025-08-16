@@ -77,6 +77,30 @@ const handleLogout = async () => {
       path: '/insights'
     },
     {
+      id: 'Clients',
+      label: 'Clients',
+      icon: (
+        <img 
+          src="https://img.icons8.com/dusk/64/administrator-male.png" 
+          alt="reports" 
+          className="w-4 h-4 sm:w-5 sm:h-5"
+        />
+      ),
+      path: '/clients'
+    },
+    {
+      id: 'Projects',
+      label: 'Projects',
+      icon: (
+        <img 
+          src="https://img.icons8.com/pulsar-color/48/project.png" 
+          alt="reports" 
+          className="w-4 h-4 sm:w-5 sm:h-5"
+        />
+      ),
+      path: '/projects'
+    },
+    {
       id: 'HR',
       label: 'HR Hub',
       icon: (
@@ -102,7 +126,7 @@ const handleLogout = async () => {
     },
     {
       id: 'Manage',
-      label: 'Manage Your employee',
+      label: 'Root Managment',
       icon: (
         <img 
           src="https://img.icons8.com/stickers/100/admin-settings-male.png" 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Edit, Loader2, X } from 'lucide-react';
+import { Plus, Trash2, Edit, Loader2, X, Search, ChevronDown } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
 import Cookies from 'js-cookie';
 import {
@@ -36,6 +36,13 @@ const ClientComponent = () => {
   const [editingId, setEditingId] = useState(null);
   const [imageUrls, setImageUrls] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  // Search state
+  const [isSearchExpanded, setIsSearchExpanded] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [searchField, setSearchField] = useState('client_name');
+  const [suggestions, setSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
   // Fetch clients on component mount and when operation succeeds
   useEffect(() => {
@@ -53,6 +60,24 @@ const ClientComponent = () => {
       }, 300);
     }
   }, [operationStatus, dispatch]);
+
+  // Generate suggestions based on search term and field
+  useEffect(() => {
+    if (searchTerm.length > 0) {
+      const filtered = clients.filter(client => {
+        const fieldValue = String(client[searchField] || '').toLowerCase();
+        return fieldValue.includes(searchTerm.toLowerCase());
+      });
+      
+      const uniqueSuggestions = [...new Set(
+        filtered.map(client => client[searchField])
+      )].filter(Boolean);
+      
+      setSuggestions(uniqueSuggestions.slice(0, 5));
+    } else {
+      setSuggestions([]);
+    }
+  }, [searchTerm, searchField, clients]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -127,17 +152,91 @@ const ClientComponent = () => {
     }
   };
 
+  const filteredClients = clients.filter(client => {
+    if (!searchTerm) return true;
+    const fieldValue = String(client[searchField] || '').toLowerCase();
+    return fieldValue.includes(searchTerm.toLowerCase());
+  });
+
+  const handleSuggestionClick = (suggestion) => {
+    setSearchTerm(suggestion);
+    setShowSuggestions(false);
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-2xl font-bold text-gray-800">Clients Management</h1>
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="flex items-center gap-2 bg-[#EA7125] text-white px-4 py-2 rounded-lg hover:bg-[#d45f1a] transition-colors"
-        >
-          <Plus size={18} />
-          Add New Client
-        </button>
+        <div className="flex items-center gap-4">
+          {/* Search Bar */}
+          <div className="relative">
+            <div className={`flex items-center transition-all duration-300 ${isSearchExpanded ? 'w-140' : 'w-10'}`}>
+              {isSearchExpanded && (
+                <>
+                  <select
+                    value={searchField}
+                    onChange={(e) => setSearchField(e.target.value)}
+                    className="h-10 px-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-1 focus:ring-[#EA7125] bg-white text-sm"
+                  >
+                    <option value="client_name">Client Name</option>
+                    <option value="name">Contact Person</option>
+                    <option value="phone">Phone</option>
+                    <option value="email">Email</option>
+                    <option value="companyType">Company Type</option>
+                    <option value="description">Description</option>
+                  </select>
+                  <div className="relative flex-1">
+                    <input
+                      type="text"
+                      value={searchTerm}
+                      onChange={(e) => {
+                        setSearchTerm(e.target.value);
+                        setShowSuggestions(true);
+                      }}
+                      onFocus={() => setShowSuggestions(true)}
+                      onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                      placeholder="Search..."
+                      className="h-10 w-full px-3 py-2 border-t border-b border-gray-300 focus:outline-none focus:ring-1 focus:ring-[#EA7125] text-sm"
+                    />
+                    {showSuggestions && suggestions.length > 0 && (
+                      <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg">
+                        {suggestions.map((suggestion, index) => (
+                          <div
+                            key={index}
+                            className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm"
+                            onMouseDown={() => handleSuggestionClick(suggestion)}
+                          >
+                            {suggestion}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+              <button
+                onClick={() => {
+                  setIsSearchExpanded(!isSearchExpanded);
+                  if (isSearchExpanded) {
+                    setSearchTerm('');
+                    setShowSuggestions(false);
+                  }
+                }}
+                className={`h-10 w-10 flex items-center justify-center ${isSearchExpanded ? 'bg-[#EA7125] text-white rounded-r-md' : 'bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300'}`}
+              >
+                {isSearchExpanded ? <X size={18} /> : <Search size={18} />}
+              </button>
+            </div>
+          </div>
+
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="flex items-center gap-2 bg-[#EA7125] text-white px-4 py-2 rounded-lg hover:bg-[#d45f1a] transition-colors"
+          >
+            <Plus size={18} />
+            Add New Client
+          </button>
+        </div>
       </div>
 
       {/* Clients Table */}
@@ -159,7 +258,7 @@ const ClientComponent = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {clients.map((client) => (
+              {filteredClients.map((client) => (
                 <tr key={client.id}>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
