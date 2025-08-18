@@ -14,13 +14,13 @@ import {
 } from '../../../redux/client/client';
 import PhotoUploader from '../../Global/uploader';
 
-const ClientComponent = () => {
+const ClientComponent = ({onClientsCountChange}) => {
   const dispatch = useDispatch();
   const clients = useSelector(selectAllClients);
   const clientsStatus = useSelector(selectClientsStatus);
   const operationStatus = useSelector(selectOperationStatus);
   const [uid, setUid] = useState(Cookies.get('userUid') || '');
-  
+//  console.log(clients.length)
   // Form state
   const [formData, setFormData] = useState({
     client_name: '',
@@ -61,6 +61,13 @@ const ClientComponent = () => {
     }
   }, [operationStatus, dispatch]);
 
+
+
+  useEffect(() => {
+    if (onClientsCountChange && clients) {
+      onClientsCountChange(clients.length);
+    }
+  }, [clients, onClientsCountChange]);
   // Generate suggestions based on search term and field
   useEffect(() => {
     if (searchTerm.length > 0) {

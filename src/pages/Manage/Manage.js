@@ -2,16 +2,27 @@ import React, { useState, useEffect } from 'react';
 import { Users, UserCheck, FileText, Briefcase, Plus, Search, BarChart3, LayoutDashboard } from 'lucide-react';
 import ClientComponent from '../../component/Manage/client/client';
 import EmployeeComponent from '../../component/Manage/employee/employee';
-import LeaveComplainComponent from '../../component/Manage/leave&complain/leave&complain';
 import ProjectComponent from '../../component/Manage/project/project';
 import TeamComponent from '../../component/Manage/team/team';
 
+import { useDispatch, useSelector } from 'react-redux';
 const ManagePage = () => {
+  const dispatch = useDispatch();
+  const [profileCount, setProfileCount] = useState(0);
+  const [clientCount, setClientCount] = useState(0);
   // Get the active tab from localStorage or default to 'overview'
   const [activeTab, setActiveTab] = useState(() => {
     const savedTab = typeof window !== 'undefined' ? localStorage.getItem('activeTab') : null;
     return savedTab || 'overview';
   });
+
+  const handleProfileCountChange = (count) => {
+  setProfileCount(count);
+};
+const handleClientCountChange = (count) => {
+  setClientCount(count);
+  };
+// console.log(profileCount)
 
   // Save the active tab to localStorage whenever it changes
   useEffect(() => {
@@ -63,7 +74,7 @@ const ManagePage = () => {
       icon={UserCheck}
       onViewAll={() => setActiveTab('employee')}
     >
-      <EmployeeComponent preview={true} />
+      <EmployeeComponent preview={true} onProfileCountChange={handleProfileCountChange} />
     </PreviewCard>
   );
 
@@ -89,13 +100,13 @@ const ManagePage = () => {
       case 'client':
         return (
           <div className="space-y-6">
-            <ClientComponent />
+            <ClientComponent onClientsCountChange={handleClientCountChange} />
           </div>
         );
       case 'employee':
         return (
           <div className="space-y-6">
-            <EmployeeComponent />
+            <EmployeeComponent onProfileCountChange={handleProfileCountChange} />
           </div>
         );
       case 'project':
@@ -115,8 +126,8 @@ const ManagePage = () => {
           <div className="space-y-8">
             {/* Stats Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <StatCard label="Total Clients" value="1" trend="+0%" />
-              <StatCard label="Active Employees" value="1" trend="+0%" />
+              <StatCard label="Total Clients" value={clientCount} trend="+0%" />
+              <StatCard label="Active Employees" value={profileCount} trend="+0%" />
               <StatCard label="Ongoing Projects" value="1" trend="+0%" />
               <StatCard label="Active Teams" value="1" trend="+0%" />
             </div>
@@ -135,10 +146,10 @@ const ManagePage = () => {
                 icon={Users}
                 onViewAll={() => setActiveTab('client')}
               >
-                <ClientComponent preview={true} />
+                <ClientComponent preview={true} onClientsCountChange={handleClientCountChange} />
               </PreviewCard>
 
-              <EmployeePreview />
+              <EmployeePreview onProfileCountChange={handleProfileCountChange} />
 
 
 

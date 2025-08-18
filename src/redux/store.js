@@ -7,6 +7,7 @@ import insightReducer from './Insights/Insights';
 import teamReducer from './team/team';
 import clientReducer from './client/client';
 import projectReducer from './project/project';
+import assigmentReducer from './assignment/assignment'
 export const store = configureStore({
   reducer: {
     auth: authReducer,
@@ -16,6 +17,7 @@ export const store = configureStore({
     teams: teamReducer,
     clients: clientReducer,
     projects: projectReducer,
+    assignments: assigmentReducer
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

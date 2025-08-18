@@ -28,7 +28,7 @@ const ProjectComponent = () => {
   const [showForm, setShowForm] = useState(false);
   const [editingProject, setEditingProject] = useState(null);
   const [uid] = useState(Cookies.get('userUid') || '');
-console.log(projects)
+console.log(projects.length)
   useEffect(() => {
     dispatch(fetchProjects());
   }, [dispatch]);
@@ -41,6 +41,11 @@ console.log(projects)
     }
   }, [operationStatus, dispatch]);
 
+    // useEffect(() => {
+  //   if (onClientsCountChange && projects) {
+  //     onClientsCountChange(projects.length);
+  //   }
+  // }, [projects, onProjectsCountChange]);
   const handleCreate = (projectData) => {
     dispatch(createProject({ ...projectData, created_by: uid }));
   };
@@ -52,6 +57,9 @@ console.log(projects)
   const handleDelete = (id) => {
     dispatch(deleteProject(id));
   };
+
+
+
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-orange-100 p-6">

@@ -16,6 +16,7 @@ import Resources from './pages/Resources/Resources';
 import ManagePage from './pages/Manage/Manage';
 import ClientPage from './pages/client/client';
 import ProjectsPage from './pages/Projects/Projects';
+import Assignment from './pages/Assignment/Assignment';
 const App = () => {
   const dispatch = useDispatch();
 
@@ -49,6 +50,7 @@ const App = () => {
            <Route path='/manage' element={<ManagePage/>}/>
            <Route path='/clients' element={<ClientPage/>}/>
            <Route path='/projects' element={<ProjectsPage/>}/>
+           <Route path='/assignment' element={<Assignment/>}/>
         </Route>
       </Routes>
     </Router>

@@ -89,6 +89,18 @@ const handleLogout = async () => {
       path: '/clients'
     },
     {
+      id: 'Assigments',
+      label: 'Assigments',
+      icon: (
+        <img 
+          src="https://img.icons8.com/pulsar-color/48/task.png" 
+          alt="reports" 
+          className="w-4 h-4 sm:w-5 sm:h-5"
+        />
+      ),
+      path: '/assignment'
+    },
+    {
       id: 'Projects',
       label: 'Projects',
       icon: (

@@ -6,14 +6,14 @@ import AddUser from './AddUser';
 import ViewUser from './ViewUser';
 import WorkSchedule from './WorkSchedules';
 
-const EmployeeComponent = ({ preview = false }) => {
+const EmployeeComponent = ({ preview = false, onProfileCountChange }) => {
   const dispatch = useDispatch();
   const { profiles, loading, error } = useSelector((state) => state.profile);
   const [showAddUser, setShowAddUser] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [showUserDetails, setShowUserDetails] = useState(false);
   const [showScheduleDetails, setShowScheduleDetails] = useState(false);
-  
+  //console.log(profiles.length)
   // Search state
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -25,6 +25,13 @@ const EmployeeComponent = ({ preview = false }) => {
     dispatch(fetchAllProfiles());
   }, [dispatch]);
 
+
+  // Send profiles length to parent component when profiles change
+useEffect(() => {
+  if (onProfileCountChange && profiles) {
+    onProfileCountChange(profiles.length);
+  }
+}, [profiles, onProfileCountChange]);
   // Update selectedUser when profiles change (to reflect latest data)
   useEffect(() => {
     if (selectedUser && selectedUser.uid && profiles) {
