@@ -1,6 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { Calendar, CheckCircle, Clock, AlertCircle, MessageCircle, User, Link } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Calendar, CheckCircle, Clock, AlertCircle, MessageCircle, User, Link, Trash2, RefreshCcw } from 'lucide-react';
 import Cookies from 'js-cookie';
+import { useDispatch } from 'react-redux';
+import { deleteAssignment, fetchAssignments, resetAssignmentState } from '../../redux/assignment/assignment';
+import ViewEditTaskPopup from './ViewEditTaskPopup';
 
 const xorDecrypt = (encrypted, secretKey = '28032002') => {
   try {
@@ -32,14 +35,50 @@ const getAuthToken = () => {
   return token;
 };
 
-const Task = ({ tasks, selectedDate }) => {
+const Task = ({ tasks, selectedDate, onTaskDeleted, onTaskUpdated }) => {
+  const dispatch = useDispatch();
   const [assigneeProfiles, setAssigneeProfiles] = useState({});
+  const [selectedTask, setSelectedTask] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  const handleRefresh = useCallback(() => {
+    console.log("called")
+    dispatch(resetAssignmentState());
+    dispatch(fetchAssignments());
+  }, [dispatch]);
+
+  const handleTaskUpdatedLocal = useCallback((shouldRefresh = false) => {
+    console.log('handleTaskUpdatedLocal called with shouldRefresh:', shouldRefresh);
+    
+    if (shouldRefresh) {
+      console.log('Refreshing tasks from callback...');
+      handleRefresh()
+      // Trigger a refresh by incrementing the refresh trigger
+      setRefreshTrigger(prev => prev + 1);
+      
+      // Also call parent callback if needed
+      if (onTaskUpdated) {
+        onTaskUpdated();
+      }
+    }
+  }, [onTaskUpdated]);
+
+  useEffect(() => {
+    if (refreshTrigger > 0) {
+      // Use a small timeout to ensure the update is fully processed
+      setTimeout(() => {
+        console.log('Dispatching refresh actions...');
+        dispatch(resetAssignmentState());
+        dispatch(fetchAssignments());
+      }, 500);
+    }
+  }, [refreshTrigger, dispatch]);
 
   const fetchProfile = async (uid) => {
     try {
       const token = getAuthToken();
       if (!token) {
-        console.error('No auth token available');
         return;
       }
 
@@ -63,40 +102,42 @@ const Task = ({ tasks, selectedDate }) => {
 
   useEffect(() => {
     const fetchAllProfiles = async () => {
-      // Get unique assignee IDs from all tasks
-      const uniqueAssigneeIds = [...new Set(tasks.map(task => task.assignee))];
+      if (!tasks || tasks.length === 0) return;
       
+      // Get unique assignee IDs from all tasks
+      const uniqueAssigneeIds = [...new Set(tasks.map(task => task.assignee).filter(Boolean))];
+
       const profiles = {};
       for (const uid of uniqueAssigneeIds) {
         if (uid) {
           const profileData = await fetchProfile(uid);
           if (profileData) {
-            // Store the profile data including the success flag
             profiles[uid] = profileData;
           }
         }
       }
-      
+
       setAssigneeProfiles(profiles);
     };
 
-    if (tasks.length > 0) {
-      fetchAllProfiles();
-    }
+    fetchAllProfiles();
   }, [tasks]);
 
-  const getTasksForDate = (date) => {
-    if (!date) return [];
+  const getTasksForDate = (date, taskList) => {
+    if (!date || !taskList || !Array.isArray(taskList)) return [];
     const dateStr = date.toDateString();
-    return tasks.filter(task => task.dueDate.toDateString() === dateStr);
+    return taskList.filter(task => {
+      const taskDueDate = task.dueDate ? new Date(task.dueDate) : null;
+      return taskDueDate && taskDueDate.toDateString() === dateStr;
+    });
   };
 
   const formatDate = (date) => {
-    return date.toLocaleDateString('en-US', { 
+    return date.toLocaleDateString('en-US', {
       weekday: 'long',
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
     });
   };
 
@@ -119,7 +160,7 @@ const Task = ({ tasks, selectedDate }) => {
       'in-progress': 'bg-blue-100 text-blue-800',
       'overdue': 'bg-red-100 text-red-800'
     };
-    
+
     return badges[status] || 'bg-gray-100 text-gray-800';
   };
 
@@ -138,33 +179,58 @@ const Task = ({ tasks, selectedDate }) => {
 
   const getAssigneeName = (uid) => {
     const profile = assigneeProfiles[uid];
-    if (!profile) return uid; // Return UID if no profile found
-    
-    // Check if we have the direct data object (from your API response structure)
+    if (!profile) return uid;
+
     const profileData = profile.data || profile;
-    
-    // First try firstname + lastname
+
     if (profileData.firstname || profileData.lastname) {
       return `${profileData.firstname || ''} ${profileData.lastname || ''}`.trim();
     }
-    
-    // Then try username
+
     if (profileData.username) {
       return profileData.username;
     }
-    
-    // Fallback to UID
+
     return uid;
   };
 
-  const tasksForSelectedDate = getTasksForDate(selectedDate);
+  const tasksForSelectedDate = getTasksForDate(selectedDate, tasks);
+
+  const handleDeleteTask = async (taskId) => {
+    if (window.confirm('Are you sure you want to delete this task?')) {
+      setIsDeleting(taskId);
+      try {
+        await dispatch(deleteAssignment(taskId)).unwrap();
+
+        // Call the parent callback
+        if (onTaskDeleted) {
+          onTaskDeleted();
+        }
+
+        setIsDeleting(null);
+      } catch (error) {
+        console.error('Failed to delete task:', error);
+        setIsDeleting(null);
+        alert('Failed to delete task. Please try again.');
+      }
+    }
+  };
 
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-6 h-full flex flex-col">
-      <h2 className="text-lg font-semibold text-gray-900 mb-4">
-        Tasks for {selectedDate ? formatDate(selectedDate) : 'Select a Date'}
-      </h2>
-      
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-lg font-semibold text-gray-900">
+          Tasks for {selectedDate ? formatDate(selectedDate) : 'Select a Date'}
+        </h2>
+        <button
+          onClick={handleRefresh}
+          className="text-gray-500 hover:text-gray-700 transition-colors"
+          title="Refresh tasks"
+        >
+          <RefreshCcw size={16} />
+        </button>
+      </div>
+
       {tasksForSelectedDate.length === 0 ? (
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center text-gray-500">
@@ -177,14 +243,31 @@ const Task = ({ tasks, selectedDate }) => {
         <div className="flex-1 overflow-y-auto">
           <div className="space-y-4">
             {tasksForSelectedDate.map(task => (
-              <div key={task.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow">
+              <div
+                key={task.id}
+                className={`border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow ${
+                  isDeleting === task.id ? 'opacity-50 pointer-events-none' : ''
+                }`}
+              >
                 <div className="flex items-start justify-between mb-3">
                   <h3 className="font-medium text-gray-900 flex-1 pr-4">{task.title}</h3>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${getStatusBadge(task.status)}`}>
-                    {getStatusText(task.status)}
-                  </span>
+                  <div className='flex flex-row gap-3'>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${getStatusBadge(task.status)}`}>
+                      {getStatusText(task.status)}
+                    </span>
+                    <button
+                      onClick={() => handleDeleteTask(task.id)}
+                      disabled={isDeleting === task.id}
+                      className={`text-red-500 hover:text-red-700 transition-colors ${
+                        isDeleting === task.id ? 'cursor-not-allowed opacity-50' : ''
+                      }`}
+                      title="Delete task"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
                 </div>
-                
+
                 <div className="flex items-center gap-4 text-sm text-gray-600 mb-3 flex-wrap">
                   <div className="flex items-center gap-1">
                     <User size={14} className="text-gray-400" />
@@ -207,31 +290,46 @@ const Task = ({ tasks, selectedDate }) => {
                     </div>
                   )}
                 </div>
-                
+
                 <div className="text-sm text-gray-600 mb-3">
                   {task.comment && (
                     <p className="italic">"{task.comment}"</p>
                   )}
                 </div>
-                
+
                 {task.urls && (
-                  <a 
-                    href={task.urls} 
-                    target="_blank" 
+                  <a
+                    href={task.urls}
+                    target="_blank"
                     rel="noopener noreferrer"
                     className="text-sm text-blue-600 hover:text-blue-700 font-medium hover:underline transition-colors block mb-2"
                   >
                     View Attachment
                   </a>
                 )}
-                
-                <button className="text-sm text-blue-600 hover:text-blue-700 font-medium hover:underline transition-colors">
+
+                <button
+                  onClick={() => setSelectedTask(task)}
+                  className="text-sm text-blue-600 hover:text-blue-700 font-medium hover:underline transition-colors"
+                >
                   View Details
                 </button>
               </div>
             ))}
           </div>
         </div>
+      )}
+
+      {selectedTask && (
+        <ViewEditTaskPopup
+          task={{
+            ...selectedTask,
+            startDate: new Date(selectedTask.startDate),
+            dueDate: new Date(selectedTask.dueDate)
+          }}
+          onClose={() => setSelectedTask(null)}
+          onTaskUpdated={handleTaskUpdatedLocal}
+        />
       )}
     </div>
   );

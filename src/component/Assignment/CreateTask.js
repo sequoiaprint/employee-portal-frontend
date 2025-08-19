@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { createAssignment, resetAssignmentState } from '../../redux/assignment/assignment';
+import { createAssignment, resetAssignmentState, fetchAssignments } from '../../redux/assignment/assignment';
 import Cookies from 'js-cookie';
 import UserSelect from '../Global/SelectProfile';
 import DatePicker from 'react-datepicker';
@@ -10,8 +10,9 @@ import PhotoUploader from '../Global/uploader';
 
 const CreateTask = ({ isOpen, onClose, selectedProjectId }) => {
   const dispatch = useDispatch();
-  const { loading, error, success } = useSelector(state => state.assignments);
+  const { loading, error } = useSelector(state => state.assignments);
   const [uid] = useState(Cookies.get('userUid') || '');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   const [formData, setFormData] = useState({
     assignedPerson: '',
@@ -30,6 +31,14 @@ const CreateTask = ({ isOpen, onClose, selectedProjectId }) => {
   });
 
   const [uploadedFiles, setUploadedFiles] = useState([]);
+
+  // Update projectId when selectedProjectId changes
+  useEffect(() => {
+    setFormData(prev => ({
+      ...prev,
+      projectId: selectedProjectId
+    }));
+  }, [selectedProjectId]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -58,8 +67,28 @@ const CreateTask = ({ isOpen, onClose, selectedProjectId }) => {
     setUploadedFiles(prev => prev.filter((_, i) => i !== index));
   };
 
+  const resetForm = () => {
+    setFormData({
+      assignedPerson: '',
+      task: '',
+      startDate: new Date(),
+      endDate: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      isCompleted: false,
+      projectId: selectedProjectId,
+      urls: '',
+      status: 'in-progress',
+      createdBy: uid,
+      comment: '',
+      commentUserId: uid,
+      issue: '',
+      issueUserId: ''
+    });
+    setUploadedFiles([]);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsSubmitting(true);
     
     const submissionData = {
       ...formData,
@@ -67,37 +96,52 @@ const CreateTask = ({ isOpen, onClose, selectedProjectId }) => {
       projectId: selectedProjectId
     };
 
-    const result = await dispatch(createAssignment(submissionData));
-    
-    if (result.meta.requestStatus === 'fulfilled') {
-      // Reset form
-      setFormData({
-        assignedPerson: '',
-        task: '',
-        startDate: new Date(),
-        endDate: new Date(Date.now() + 24 * 60 * 60 * 1000),
-        isCompleted: false,
-        projectId: selectedProjectId,
-        urls: '',
-        status: 'in-progress',
-        createdBy: uid,
-        comment: '',
-        commentUserId: uid,
-        issue: '',
-        issueUserId: ''
-      });
-      setUploadedFiles([]);
+    console.log('Submitting data:', submissionData);
+
+    // Use optimistic approach - close modal and refresh regardless of response
+    try {
+      // Fire and forget approach since we know the task is being created
+      dispatch(createAssignment(submissionData));
+      
+      // Close modal immediately
+      resetForm();
       onClose();
-      dispatch(resetAssignmentState());
+      
+      // Refresh data after a short delay to ensure backend processing
+      setTimeout(() => {
+        dispatch(fetchAssignments());
+      }, 1000);
+      
+    } catch (error) {
+      console.error('Error in handleSubmit:', error);
+    } finally {
+      setIsSubmitting(false);
     }
+  };
+
+  const handleClose = () => {
+    resetForm();
+    dispatch(resetAssignmentState());
+    setIsSubmitting(false);
+    onClose();
   };
 
   // Clean up when component unmounts
   useEffect(() => {
     return () => {
       dispatch(resetAssignmentState());
+      setIsSubmitting(false);
     };
   }, [dispatch]);
+
+  // Reset form when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      resetForm();
+      dispatch(resetAssignmentState());
+      setIsSubmitting(false);
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -107,11 +151,9 @@ const CreateTask = ({ isOpen, onClose, selectedProjectId }) => {
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold">Create New Task</h2>
           <button 
-            onClick={() => {
-              onClose();
-              dispatch(resetAssignmentState());
-            }} 
+            onClick={handleClose}
             className="text-gray-500 hover:text-gray-700"
+            disabled={isSubmitting}
           >
             <X size={24} />
           </button>
@@ -129,6 +171,7 @@ const CreateTask = ({ isOpen, onClose, selectedProjectId }) => {
                 className="w-full p-2 border rounded"
                 rows={3}
                 required
+                disabled={isSubmitting}
               />
             </div>
 
@@ -138,6 +181,7 @@ const CreateTask = ({ isOpen, onClose, selectedProjectId }) => {
               <UserSelect
                 value={formData.assignedPerson}
                 onChange={(value) => setFormData(prev => ({ ...prev, assignedPerson: value }))}
+                disabled={isSubmitting}
               />
             </div>
 
@@ -150,6 +194,7 @@ const CreateTask = ({ isOpen, onClose, selectedProjectId }) => {
                 onChange={handleChange}
                 className="w-full p-2 border rounded"
                 required
+                disabled={isSubmitting}
               >
                 <option value="in-progress">In Progress</option>
                 <option value="pending">Pending</option>                
@@ -165,6 +210,7 @@ const CreateTask = ({ isOpen, onClose, selectedProjectId }) => {
                 onChange={(date) => handleDateChange(date, 'startDate')}
                 className="w-full p-2 border rounded"
                 required
+                disabled={isSubmitting}
               />
             </div>
 
@@ -177,22 +223,25 @@ const CreateTask = ({ isOpen, onClose, selectedProjectId }) => {
                 className="w-full p-2 border rounded"
                 minDate={formData.startDate}
                 required
+                disabled={isSubmitting}
               />
             </div>
 
             {/* File Upload */}
             <div className="col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">Upload Files</label>
-              <PhotoUploader
-                onUploadSuccess={handleUploadSuccess}
-                onUploadError={handleUploadError}
-              >
-                <div className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-orange-500 transition-colors cursor-pointer">
-                  <Plus className="w-6 h-6 text-gray-400 mb-2" />
-                  <p className="text-sm text-gray-600">Click to upload or drag and drop</p>
-                  <p className="text-xs text-gray-500 mt-1">PNG, JPG, GIF up to 2MB</p>
-                </div>
-              </PhotoUploader>
+              {!isSubmitting && (
+                <PhotoUploader
+                  onUploadSuccess={handleUploadSuccess}
+                  onUploadError={handleUploadError}
+                >
+                  <div className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-orange-500 transition-colors cursor-pointer">
+                    <Plus className="w-6 h-6 text-gray-400 mb-2" />
+                    <p className="text-sm text-gray-600">Click to upload or drag and drop</p>
+                    <p className="text-xs text-gray-500 mt-1">PNG, JPG, GIF up to 2MB</p>
+                  </div>
+                </PhotoUploader>
+              )}
 
               {uploadedFiles.length > 0 && (
                 <div className="mt-2 space-y-2">
@@ -206,57 +255,51 @@ const CreateTask = ({ isOpen, onClose, selectedProjectId }) => {
                       >
                         {fileUrl.split('/').pop()}
                       </a>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveFile(index)}
-                        className="text-red-500 hover:text-red-700"
-                      >
-                        <Trash2 size={16} />
-                      </button>
+                      {!isSubmitting && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveFile(index)}
+                          className="text-red-500 hover:text-red-700"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>
               )}
             </div>
-
-            {/* Comment */}
-            {/* <div className="col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Initial Comment</label>
-              <textarea
-                name="comment"
-                value={formData.comment}
-                onChange={handleChange}
-                className="w-full p-2 border rounded"
-                rows={2}
-              />
-            </div> */}
           </div>
 
-          {/* Error message */}
-          {error && (
+          {/* Success message */}
+          {isSubmitting && (
+            <div className="mb-4 text-green-500 text-sm">
+              Creating task... The modal will close automatically.
+            </div>
+          )}
+
+          {/* Error message - only show if not submitting */}
+          {error && !isSubmitting && (
             <div className="mb-4 text-red-500 text-sm">
               {typeof error === 'string' ? error : 'Failed to create task'}
             </div>
           )}
 
-         <div className="flex justify-end gap-2">
+          <div className="flex justify-end gap-2">
             <button
               type="button"
-              onClick={() => {
-                onClose();
-                dispatch(resetAssignmentState());
-              }}
+              onClick={handleClose}
               className="px-4 py-2 border rounded text-gray-700 hover:bg-gray-100"
-              disabled={loading}
+              disabled={isSubmitting}
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-orange-500 text-white rounded hover:bg-orange-600 flex items-center gap-2"
-              disabled={loading}
+              className="px-4 py-2 bg-orange-500 text-white rounded hover:bg-orange-600 flex items-center gap-2 disabled:opacity-50"
+              disabled={isSubmitting}
             >
-              {loading ? 'Creating...' : (
+              {isSubmitting ? 'Creating...' : (
                 <>
                   <Plus size={16} />
                   Create Task

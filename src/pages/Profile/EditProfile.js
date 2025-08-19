@@ -54,7 +54,7 @@ const EditProfile = () => {
   // Fetch profile data when UID changes
   useEffect(() => {
     if (uid) {
-      console.log('Fetching profile for UID:', uid);
+      //console.log('Fetching profile for UID:', uid);
       dispatch(fetchProfile(uid));
     }
   }, [dispatch, uid]);

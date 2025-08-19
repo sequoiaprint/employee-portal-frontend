@@ -3,7 +3,8 @@ import { useSelector, useDispatch } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { fetchProfile, initializeProfileFromStorage } from '../../redux/profile/profile';
 import Cookies from 'js-cookie';
-
+import {ClipboardList } from 'lucide-react';
+import TodoList from './TodoList';
 const Header = ({ isSidebarCollapsed }) => {
   const { user } = useSelector((state) => state.auth);
   const { currentProfile, loading } = useSelector((state) => state.profile);
@@ -13,7 +14,8 @@ const Header = ({ isSidebarCollapsed }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
-  
+const [showTodoDropdown, setShowTodoDropdown] = useState(false);
+const [remainingCount, setRemainingCount] = useState(0);
   // Initialize profile from storage on first render
   useEffect(() => {
     const initializeProfile = async () => {
@@ -165,6 +167,29 @@ const getProfileDisplay = () => {
           </h1>
 
           <div className="flex items-center space-x-6">
+<div className="relative">
+  <button
+    className="text-white flex flex-row items-center relative"
+    onClick={() => setShowTodoDropdown(!showTodoDropdown)}
+  >
+    <ClipboardList size={30} />
+    
+    {/* Badge for remaining count */}
+    {remainingCount > 0 && (
+      <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+        {remainingCount}
+      </span>
+    )}
+  </button>
+
+  {showTodoDropdown && (
+    <div className="absolute right-0 mt-2 z-50">
+      <TodoList onRemainingChange={setRemainingCount} />
+    </div>
+  )}
+</div>
+
+            
             <div className="hidden lg:block text-right">
               <p className="text-sm text-white">Welcome back,</p>
               <p className="text-sm font-semibold text-white">

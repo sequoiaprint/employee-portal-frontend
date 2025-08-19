@@ -160,7 +160,7 @@ export const fetchProfile = createAsyncThunk(
         return rejectWithValue('User ID is required');
       }
 
-      console.log('Fetching profile for UID:', uid);
+      //console.log('Fetching profile for UID:', uid);
       const config = createAuthConfig();
       const response = await axios.get(`http://localhost:9000/api/profiles/${uid}`, config);
 

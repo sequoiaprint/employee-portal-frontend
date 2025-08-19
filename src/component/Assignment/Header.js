@@ -7,16 +7,10 @@ import {
   selectAllProjects,
 } from '../../redux/project/project';
 
-const ProjectSelection = ({ onProjectSelect }) => {  // Add onProjectSelect prop
+const ProjectSelection = ({ onProjectSelect, selectedProjectId }) => {
   const dispatch = useDispatch();
   const [uid] = useState(Cookies.get('userUid') || '');
   const [open, setOpen] = useState(false);
-  const [selectedProject, setSelectedProject] = useState({
-    value: "general",
-    label: "General Tasks",
-    type: "General",
-  });
-
   const allProjects = useSelector(selectAllProjects);
 
   useEffect(() => {
@@ -44,11 +38,16 @@ const ProjectSelection = ({ onProjectSelect }) => {  // Add onProjectSelect prop
     }))
   ];
 
+  const selectedProject = projectOptions.find(project => 
+    String(project.value) === String(selectedProjectId)
+  ) || projectOptions[0];
+
   const handleSelect = (project) => {
-    setSelectedProject(project);
     setOpen(false);
     if (onProjectSelect) {
-      onProjectSelect(project.value);  // Call the callback with the selected project ID
+      onProjectSelect(project.value);
+      // Store the selected project ID in localStorage
+      localStorage.setItem('lastSelectedProjectId', project.value);
     }
   };
 
@@ -89,7 +88,7 @@ const ProjectSelection = ({ onProjectSelect }) => {  // Add onProjectSelect prop
                 key={project.value}
                 onClick={() => handleSelect(project)}
                 className={`cursor-pointer flex items-center justify-between px-4 py-2 text-sm hover:bg-blue-100 ${
-                  selectedProject.value === project.value
+                  String(selectedProject.value) === String(project.value)
                     ? "bg-blue-100"
                     : "text-gray-700"
                 }`}
@@ -106,7 +105,7 @@ const ProjectSelection = ({ onProjectSelect }) => {  // Add onProjectSelect prop
                   </span>
                   {project.label}
                 </div>
-                {selectedProject.value === project.value && (
+                {String(selectedProject.value) === String(project.value) && (
                   <Check className="w-4 h-4 text-blue-500" />
                 )}
               </div>
