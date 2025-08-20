@@ -160,10 +160,10 @@ export default function MyProjects() {
     }
   };
 
-  console.log('User UID:', uid);
-  console.log('All Projects:', allProjects);
-  console.log('User Projects:', userProjects);
-  console.log('Filtered Projects:', filteredProjects);
+  // console.log('User UID:', uid);
+  // console.log('All Projects:', allProjects);
+  // console.log('User Projects:', userProjects);
+  // console.log('Filtered Projects:', filteredProjects);
 
   return (
     <div className="bg-white rounded-xl shadow-md overflow-hidden">

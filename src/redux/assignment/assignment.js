@@ -1,4 +1,4 @@
-// /redux/assignment.js - Complete Fixed Version
+// /redux/assignment.js - Optimized Version (No Timeout)
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
 import Cookies from 'js-cookie';
@@ -47,6 +47,34 @@ const handleUnauthorized = () => {
 // API base URL
 const API_BASE_URL = 'http://localhost:9000/api/assignment';
 
+// Create axios instance with default config (no timeout)
+const axiosInstance = axios.create({
+  baseURL: API_BASE_URL,
+  headers: {
+    'Content-Type': 'application/json'
+  }
+});
+
+// Request interceptor for auth token
+axiosInstance.interceptors.request.use((config) => {
+  const token = getAuthToken();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+// Response interceptor for error handling
+axiosInstance.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      handleUnauthorized();
+    }
+    return Promise.reject(error);
+  }
+);
+
 // Async thunks
 export const fetchAssignments = createAsyncThunk(
   'assignments/fetchAll',
@@ -58,18 +86,11 @@ export const fetchAssignments = createAsyncThunk(
         return rejectWithValue('Unauthorized');
       }
 
-      const response = await axios.get(API_BASE_URL, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      });
+      const response = await axiosInstance.get('/');
       return response.data;
     } catch (error) {
       console.error('Fetch assignments error:', error);
-      if (error.response?.status === 401) {
-        handleUnauthorized();
-      }
-      return rejectWithValue(error.response?.data?.message || error.message);
+      return rejectWithValue(error.response?.data?.message || error.message || 'Failed to fetch assignments');
     }
   }
 );
@@ -84,17 +105,11 @@ export const fetchAssignmentById = createAsyncThunk(
         return rejectWithValue('Unauthorized');
       }
 
-      const response = await axios.get(`${API_BASE_URL}/${id}`, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      });
+      const response = await axiosInstance.get(`/${id}`);
       return response.data;
     } catch (error) {
-      if (error.response?.status === 401) {
-        handleUnauthorized();
-      }
-      return rejectWithValue(error.response?.data?.message || error.message);
+      console.error('Fetch assignment by ID error:', error);
+      return rejectWithValue(error.response?.data?.message || error.message || 'Failed to fetch assignment');
     }
   }
 );
@@ -109,24 +124,19 @@ export const createAssignment = createAsyncThunk(
         return rejectWithValue('Unauthorized');
       }
 
-      const response = await axios.post(API_BASE_URL, assignmentData, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        timeout: 60000
-      });
-
+      // No timeout set - let it complete naturally
+      const response = await axiosInstance.post('/', assignmentData);
       return response.data;
     } catch (error) {
       console.error('Create assignment error:', error);
-      if (error.response?.status === 401) {
-        handleUnauthorized();
-      }
-
+      
+      // Handle different error types
       if (error.code === 'ECONNABORTED') {
-        console.warn('Request timed out, but task may have been created');
-        return rejectWithValue('Request completed but response was slow');
+        return rejectWithValue('Request was cancelled. Please try again.');
+      }
+      
+      if (error.code === 'NETWORK_ERROR') {
+        return rejectWithValue('Network error. Please check your connection.');
       }
 
       return rejectWithValue(
@@ -139,7 +149,6 @@ export const createAssignment = createAsyncThunk(
   }
 );
 
-// In your assignment slice file
 export const updateAssignment = createAsyncThunk(
   'assignment/updateAssignment',
   async ({ id, assignmentData }, { rejectWithValue }) => {
@@ -175,7 +184,7 @@ export const updateAssignment = createAsyncThunk(
         return rejectWithValue(errorMessage);
       }
 
-      // Try to parse response, but handle empty responses
+      // Handle response parsing
       let data;
       try {
         const responseText = await response.text();
@@ -198,7 +207,7 @@ export const updateAssignment = createAsyncThunk(
 
     } catch (error) {
       console.error('Network error in updateAssignment:', error);
-      return rejectWithValue(error.message || 'Network error');
+      return rejectWithValue(error.message || 'Network error occurred while updating assignment');
     }
   }
 );
@@ -216,23 +225,16 @@ export const deleteAssignment = createAsyncThunk(
       // Optimistically update the UI
       dispatch(assignmentSlice.actions.optimisticDelete(id));
 
-      await axios.delete(`${API_BASE_URL}/${id}`, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      });
-
+      await axiosInstance.delete(`/${id}`);
       return id;
     } catch (error) {
-      if (error.response?.status === 401) {
-        handleUnauthorized();
-      }
-      return rejectWithValue(error.response?.data?.message || error.message);
+      console.error('Delete assignment error:', error);
+      return rejectWithValue(error.response?.data?.message || error.message || 'Failed to delete assignment');
     }
   }
 );
 
-// Fixed Slice
+// Assignment slice with optimized state management
 const assignmentSlice = createSlice({
   name: 'assignments',
   initialState: {
@@ -241,20 +243,39 @@ const assignmentSlice = createSlice({
     loading: false,
     error: null,
     success: false,
-    refreshCounter: 0 // Add this to force re-renders
+    refreshCounter: 0,
+    // Add operation-specific loading states for better UX
+    operations: {
+      creating: false,
+      updating: false,
+      deleting: false,
+      fetching: false
+    }
   },
   reducers: {
     resetAssignmentState: (state) => {
       state.loading = false;
       state.error = null;
       state.success = false;
+      state.operations = {
+        creating: false,
+        updating: false,
+        deleting: false,
+        fetching: false
+      };
     },
     triggerRefetch: (state) => {
       state.refreshCounter += 1;
-      state.loading = true;
+      state.operations.fetching = true;
     },
     clearCurrentAssignment: (state) => {
       state.currentAssignment = null;
+    },
+    clearError: (state) => {
+      state.error = null;
+    },
+    clearSuccess: (state) => {
+      state.success = false;
     },
     optimisticDelete: (state, action) => {
       state.assignments = state.assignments.filter(a => a.id !== action.payload);
@@ -262,7 +283,6 @@ const assignmentSlice = createSlice({
         state.currentAssignment = null;
       }
     },
-    // Simplified manual update action
     updateAssignmentInStore: (state, action) => {
       const { id, updatedData } = action.payload;
       const index = state.assignments.findIndex(a => a.id === id);
@@ -272,6 +292,20 @@ const assignmentSlice = createSlice({
       if (state.currentAssignment?.id === id) {
         state.currentAssignment = { ...state.currentAssignment, ...updatedData };
       }
+    },
+    // Add optimistic create for better UX
+    optimisticCreate: (state, action) => {
+      const tempId = `temp-${Date.now()}`;
+      const tempAssignment = {
+        ...action.payload,
+        id: tempId,
+        isTemp: true
+      };
+      state.assignments.unshift(tempAssignment);
+    },
+    // Remove temp assignment on error
+    removeTempAssignment: (state, action) => {
+      state.assignments = state.assignments.filter(a => !a.isTemp);
     }
   },
   extraReducers: (builder) => {
@@ -279,100 +313,125 @@ const assignmentSlice = createSlice({
       // Fetch all assignments
       .addCase(fetchAssignments.pending, (state) => {
         state.loading = true;
+        state.operations.fetching = true;
         state.error = null;
       })
       .addCase(fetchAssignments.fulfilled, (state, action) => {
         state.loading = false;
-        state.assignments = action.payload;
+        state.operations.fetching = false;
+        state.assignments = Array.isArray(action.payload) ? action.payload : [];
         state.error = null;
       })
       .addCase(fetchAssignments.rejected, (state, action) => {
         state.loading = false;
+        state.operations.fetching = false;
         state.error = action.payload;
       })
 
       // Fetch assignment by ID
       .addCase(fetchAssignmentById.pending, (state) => {
         state.loading = true;
+        state.operations.fetching = true;
         state.error = null;
       })
       .addCase(fetchAssignmentById.fulfilled, (state, action) => {
         state.loading = false;
+        state.operations.fetching = false;
         state.currentAssignment = action.payload;
         state.error = null;
       })
       .addCase(fetchAssignmentById.rejected, (state, action) => {
         state.loading = false;
+        state.operations.fetching = false;
         state.error = action.payload;
       })
 
       // Create assignment
       .addCase(createAssignment.pending, (state) => {
         state.loading = true;
+        state.operations.creating = true;
         state.error = null;
         state.success = false;
       })
       .addCase(createAssignment.fulfilled, (state, action) => {
         state.loading = false;
-        state.assignments.push(action.payload);
+        state.operations.creating = false;
+        
+        // Remove any temp assignments
+        state.assignments = state.assignments.filter(a => !a.isTemp);
+        
+        // Add the real assignment
+        if (action.payload) {
+          state.assignments.unshift(action.payload);
+        }
+        
         state.success = true;
         state.error = null;
       })
       .addCase(createAssignment.rejected, (state, action) => {
         state.loading = false;
+        state.operations.creating = false;
         state.error = action.payload;
         state.success = false;
+        
+        // Remove temp assignments on error
+        state.assignments = state.assignments.filter(a => !a.isTemp);
       })
 
-      // Update assignment - SIMPLIFIED AND FIXED
+      // Update assignment
       .addCase(updateAssignment.pending, (state) => {
         state.loading = true;
+        state.operations.updating = true;
         state.error = null;
         state.success = false;
       })
       .addCase(updateAssignment.fulfilled, (state, action) => {
         state.loading = false;
+        state.operations.updating = false;
         state.success = true;
         state.error = null;
 
-        const { id, updatedData } = action.payload;
-        console.log('Redux Update - ID:', id, 'Data:', updatedData);
-        
-        const index = state.assignments.findIndex(a => a.id === id);
-        console.log('Found assignment at index:', index);
+        if (action.payload) {
+          const { id, updatedData } = action.payload;
+          console.log('Redux Update - ID:', id, 'Data:', updatedData);
+          
+          const index = state.assignments.findIndex(a => a.id === id);
+          console.log('Found assignment at index:', index);
 
-        if (index !== -1) {
-          const currentAssignment = state.assignments[index];
-          
-          // Create updated assignment with proper field mapping
-          const updatedAssignment = {
-            ...currentAssignment,
-            ...updatedData,
+          if (index !== -1) {
+            const currentAssignment = state.assignments[index];
             
-            // Map fields consistently
-            title: updatedData.task || currentAssignment.title,
-            task: updatedData.task || currentAssignment.task,
-            assignee: updatedData.assignedPerson || currentAssignment.assignee,
-            assignedPerson: updatedData.assignedPerson || currentAssignment.assignedPerson,
-            dueDate: updatedData.endDate ? new Date(updatedData.endDate) : currentAssignment.dueDate,
+            // Create updated assignment with proper field mapping
+            const updatedAssignment = {
+              ...currentAssignment,
+              ...updatedData,
+              
+              // Map fields consistently
+              title: updatedData.task || currentAssignment.title,
+              task: updatedData.task || currentAssignment.task,
+              assignee: updatedData.assignedPerson || currentAssignment.assignee,
+              assignedPerson: updatedData.assignedPerson || currentAssignment.assignedPerson,
+              dueDate: updatedData.endDate ? new Date(updatedData.endDate) : currentAssignment.dueDate,
+              
+              // Calculate status
+              status: updatedData.isCompleted ? 'completed' :
+                (updatedData.endDate && new Date(updatedData.endDate) < new Date()) ? 'overdue' : 
+                'in-progress'
+            };
             
-            // Calculate status
-            status: updatedData.isCompleted ? 'completed' :
-              (updatedData.endDate && new Date(updatedData.endDate) < new Date()) ? 'overdue' : 
-              'in-progress'
-          };
-          
-          state.assignments[index] = updatedAssignment;
-          console.log('Updated assignment in state:', updatedAssignment);
-          
-          // Update currentAssignment if it matches
-          if (state.currentAssignment?.id === id) {
-            state.currentAssignment = updatedAssignment;
+            state.assignments[index] = updatedAssignment;
+            console.log('Updated assignment in state:', updatedAssignment);
+            
+            // Update currentAssignment if it matches
+            if (state.currentAssignment?.id === id) {
+              state.currentAssignment = updatedAssignment;
+            }
           }
         }
       })
       .addCase(updateAssignment.rejected, (state, action) => {
         state.loading = false;
+        state.operations.updating = false;
         state.error = action.payload;
         state.success = false;
       })
@@ -380,11 +439,13 @@ const assignmentSlice = createSlice({
       // Delete assignment
       .addCase(deleteAssignment.pending, (state) => {
         state.loading = true;
+        state.operations.deleting = true;
         state.error = null;
         state.success = false;
       })
       .addCase(deleteAssignment.fulfilled, (state, action) => {
         state.loading = false;
+        state.operations.deleting = false;
         state.assignments = state.assignments.filter(a => a.id !== action.payload);
         if (state.currentAssignment?.id === action.payload) {
           state.currentAssignment = null;
@@ -394,6 +455,7 @@ const assignmentSlice = createSlice({
       })
       .addCase(deleteAssignment.rejected, (state, action) => {
         state.loading = false;
+        state.operations.deleting = false;
         state.error = action.payload;
         state.success = false;
       });
@@ -405,7 +467,11 @@ export const {
   resetAssignmentState, 
   clearCurrentAssignment, 
   updateAssignmentInStore, 
-  triggerRefetch 
+  triggerRefetch,
+  clearError,
+  clearSuccess,
+  optimisticCreate,
+  removeTempAssignment
 } = assignmentSlice.actions;
 
 export default assignmentSlice.reducer;

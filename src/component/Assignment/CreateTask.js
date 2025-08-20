@@ -8,12 +8,46 @@ import 'react-datepicker/dist/react-datepicker.css';
 import { X, Plus, Trash2 } from 'lucide-react';
 import PhotoUploader from '../Global/uploader';
 
+const xorDecrypt = (encrypted, secretKey = '28032002') => {
+  try {
+    const decoded = atob(encrypted);
+    let result = '';
+    for (let i = 0; i < decoded.length; i++) {
+      const charCode = decoded.charCodeAt(i) ^ secretKey.charCodeAt(i % secretKey.length);
+      result += String.fromCharCode(charCode);
+    }
+    return result;
+  } catch (error) {
+    console.error('Decryption failed:', error);
+    return null;
+  }
+};
+
+const getAuthToken = () => {
+  const encryptedToken = Cookies.get('authToken');
+  if (!encryptedToken) {
+    return null;
+  }
+
+  const token = xorDecrypt(encryptedToken);
+  if (!token) {
+    console.warn('Failed to decrypt auth token');
+    return null;
+  }
+
+  return token;
+};
+
 const CreateTask = ({ isOpen, onClose, selectedProjectId }) => {
   const dispatch = useDispatch();
   const { loading, error } = useSelector(state => state.assignments);
   const [uid] = useState(Cookies.get('userUid') || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+  const [projectTeamMembers, setProjectTeamMembers] = useState([]);
+  const [isLoadingProject, setIsLoadingProject] = useState(false);
+
+  console.log(selectedProjectId);
+
   const [formData, setFormData] = useState({
     assignedPerson: '',
     task: '',
@@ -31,6 +65,65 @@ const CreateTask = ({ isOpen, onClose, selectedProjectId }) => {
   });
 
   const [uploadedFiles, setUploadedFiles] = useState([]);
+
+  // Fetch project data when selectedProjectId changes
+  useEffect(() => {
+    const fetchProjectData = async () => {
+      // If selectedProjectId is "general" or empty, don't fetch project data
+      if (selectedProjectId === "general" || !selectedProjectId) {
+        setProjectTeamMembers([]);
+        return;
+      }
+      
+      setIsLoadingProject(true);
+      try {
+        const token = getAuthToken();
+        if (!token) {
+          return;
+        }
+        const response = await fetch(`http://localhost:9000/api/projets/${selectedProjectId}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        const projectData = await response.json();
+        console.log(projectData);
+        
+        // Extract team members from project data including team lead
+        const members = [];
+        
+        // Add team lead if available
+        if (projectData.team_lead) {
+          members.push({
+            value: projectData.team_lead.uid,
+            label: projectData.team_lead.username || 
+                   `${projectData.team_lead.firstname || ''} ${projectData.team_lead.lastname || ''}`.trim() || 
+                   projectData.team_lead.uid
+          });
+        }
+        
+        // Add team members if available
+        if (projectData.team_members) {
+          projectData.team_members.forEach(member => {
+            members.push({
+              value: member.uid,
+              label: member.username || 
+                     `${member.firstname || ''} ${member.lastname || ''}`.trim() || 
+                     member.uid
+            });
+          });
+        }
+        
+        setProjectTeamMembers(members);
+      } catch (error) {
+        console.error('Error fetching project data:', error);
+      } finally {
+        setIsLoadingProject(false);
+      }
+    };
+
+    fetchProjectData();
+  }, [selectedProjectId]);
 
   // Update projectId when selectedProjectId changes
   useEffect(() => {
@@ -89,7 +182,7 @@ const CreateTask = ({ isOpen, onClose, selectedProjectId }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
-    
+
     const submissionData = {
       ...formData,
       urls: uploadedFiles.join(','),
@@ -102,16 +195,16 @@ const CreateTask = ({ isOpen, onClose, selectedProjectId }) => {
     try {
       // Fire and forget approach since we know the task is being created
       dispatch(createAssignment(submissionData));
-      
+
       // Close modal immediately
       resetForm();
       onClose();
-      
+
       // Refresh data after a short delay to ensure backend processing
       setTimeout(() => {
         dispatch(fetchAssignments());
       }, 1000);
-      
+
     } catch (error) {
       console.error('Error in handleSubmit:', error);
     } finally {
@@ -150,7 +243,7 @@ const CreateTask = ({ isOpen, onClose, selectedProjectId }) => {
       <div className="bg-white rounded-lg p-6 w-full max-w-2xl">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold">Create New Task</h2>
-          <button 
+          <button
             onClick={handleClose}
             className="text-gray-500 hover:text-gray-700"
             disabled={isSubmitting}
@@ -178,11 +271,31 @@ const CreateTask = ({ isOpen, onClose, selectedProjectId }) => {
             {/* Assigned Person */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Assign To*</label>
-              <UserSelect
-                value={formData.assignedPerson}
-                onChange={(value) => setFormData(prev => ({ ...prev, assignedPerson: value }))}
-                disabled={isSubmitting}
-              />
+              {selectedProjectId && selectedProjectId !== "general" && projectTeamMembers.length > 0 ? (
+                <select
+                  value={formData.assignedPerson}
+                  onChange={(e) => setFormData(prev => ({ ...prev, assignedPerson: e.target.value }))}
+                  className="w-full p-2 border rounded"
+                  required
+                  disabled={isSubmitting || isLoadingProject}
+                >
+                  <option value="">Select a team member</option>
+                  {projectTeamMembers.map(member => (
+                    <option key={member.value} value={member.value}>
+                      {member.label}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <UserSelect
+                  value={formData.assignedPerson}
+                  onChange={(value) => setFormData(prev => ({ ...prev, assignedPerson: value }))}
+                  disabled={isSubmitting}
+                />
+              )}
+              {isLoadingProject && (
+                <p className="text-sm text-gray-500 mt-1">Loading team members...</p>
+              )}
             </div>
 
             {/* Status */}
@@ -191,13 +304,13 @@ const CreateTask = ({ isOpen, onClose, selectedProjectId }) => {
               <select
                 name="status"
                 value={formData.status}
-                onChange={handleChange}
+                onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value }))}
                 className="w-full p-2 border rounded"
                 required
                 disabled={isSubmitting}
               >
                 <option value="in-progress">In Progress</option>
-                <option value="pending">Pending</option>                
+                <option value="pending">Pending</option>
                 <option value="completed">Completed</option>
               </select>
             </div>
@@ -247,9 +360,9 @@ const CreateTask = ({ isOpen, onClose, selectedProjectId }) => {
                 <div className="mt-2 space-y-2">
                   {uploadedFiles.map((fileUrl, index) => (
                     <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                      <a 
-                        href={fileUrl} 
-                        target="_blank" 
+                      <a
+                        href={fileUrl}
+                        target="_blank"
                         rel="noopener noreferrer"
                         className="text-blue-500 hover:underline text-sm truncate"
                       >

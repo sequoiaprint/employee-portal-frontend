@@ -5,57 +5,96 @@ import {
   Building, MapPin, ExternalLink, FileText, Flag,
   TrendingUp, Activity, Award, Timer
 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import Cookies from 'js-cookie';
+
+// XOR decryption function
+const xorDecrypt = (encrypted, secretKey = '28032002') => {
+  try {
+    const decoded = atob(encrypted);
+    let result = '';
+    for (let i = 0; i < decoded.length; i++) {
+      const charCode = decoded.charCodeAt(i) ^ secretKey.charCodeAt(i % secretKey.length);
+      result += String.fromCharCode(charCode);
+    }
+    return result;
+  } catch (error) {
+    console.error('Decryption failed:', error);
+    return null;
+  }
+};
+
+// Get auth token function
+const getAuthToken = () => {
+  const encryptedToken = Cookies.get('authToken');
+  if (!encryptedToken) {
+    return null;
+  }
+
+  const token = xorDecrypt(encryptedToken);
+  if (!token) {
+    console.warn('Failed to decrypt auth token');
+    return null;
+  }
+
+  return token;
+};
 
 export default function ViewProjectDetails({ project, onClose }) {
-  if (!project) return null;
+  const [teamAssignments, setTeamAssignments] = useState([]);
+  const [loadingAssignments, setLoadingAssignments] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Sample team activities (you can replace this with real data from your API)
-  const teamActivities = [
-    {
-      id: 1,
-      member: project.teamLead,
-      task: "Code Review for Authentication Module",
-      deadline: "2025-08-18",
-      status: "successful",
-      submittedAt: "2025-08-17",
-      type: "review"
-    },
-    {
-      id: 2,
-      member: project.teamMembers[0],
-      task: "Database Schema Design",
-      deadline: "2025-08-16",
-      status: "late",
-      submittedAt: "2025-08-17",
-      type: "development"
-    },
-    {
-      id: 3,
-      member: project.teamMembers[1],
-      task: "User Interface Mockups",
-      deadline: "2025-08-19",
-      status: "failed",
-      submittedAt: null,
-      type: "design"
-    },
-    {
-      id: 4,
-      member: project.teamManager,
-      task: "Requirements Documentation",
-      deadline: "2025-08-15",
-      status: "successful",
-      submittedAt: "2025-08-14",
-      type: "documentation"
+  useEffect(() => {
+    if (project && project.id) {
+      fetchTeamAssignments();
     }
-  ];
+  }, [project]);
+
+  const fetchTeamAssignments = async () => {
+    try {
+      setLoadingAssignments(true);
+      const token = getAuthToken();
+      
+      if (!token) {
+        setError('Authentication token not found');
+        setLoadingAssignments(false);
+        return;
+      }
+
+      const response = await fetch(`http://localhost:9000/api/assignment/project/${project.id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch assignments: ${response.status}`);
+      }
+
+      const data = await response.json();
+      setTeamAssignments(data);
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching team assignments:', err);
+      setError(err.message);
+    } finally {
+      setLoadingAssignments(false);
+    }
+  };
+
+  if (!project) return null;
 
   const getStatusIcon = (status) => {
     switch (status) {
       case 'successful':
+      case 'completed':
         return <CheckCircle className="text-green-500" size={16} />;
       case 'failed':
         return <X className="text-red-500" size={16} />;
       case 'late':
+      case 'pending':
         return <AlertCircle className="text-yellow-500" size={16} />;
       default:
         return <Circle className="text-gray-400" size={16} />;
@@ -65,8 +104,10 @@ export default function ViewProjectDetails({ project, onClose }) {
   const getStatusBadge = (status) => {
     const styles = {
       successful: "bg-green-100 text-green-800",
+      completed: "bg-green-100 text-green-800",
       failed: "bg-red-100 text-red-800",
-      late: "bg-yellow-100 text-yellow-800"
+      late: "bg-yellow-100 text-yellow-800",
+      pending: "bg-yellow-100 text-yellow-800"
     };
     return styles[status] || "bg-gray-100 text-gray-800";
   };
@@ -87,6 +128,7 @@ export default function ViewProjectDetails({ project, onClose }) {
   };
 
   const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
     return new Date(dateString).toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
@@ -95,10 +137,36 @@ export default function ViewProjectDetails({ project, onClose }) {
   };
 
   const isOverdue = (deadline) => {
+    if (!deadline) return false;
     return new Date(deadline) < new Date() && project.status === 'In Progress';
   };
 
-  console.log(project);
+  // Function to get team member by ID
+  const getTeamMemberById = (userId) => {
+    // Check team manager
+    if (project.teamManager && project.teamManager.uid === userId) {
+      return project.teamManager;
+    }
+    
+    // Check team lead
+    if (project.teamLead && project.teamLead.uid === userId) {
+      return project.teamLead;
+    }
+    
+    // Check team members
+    const member = project.teamMembers.find(member => member.uid === userId);
+    if (member) {
+      return member;
+    }
+    
+    // Return a default object if not found
+    return {
+      firstname: 'Unknown',
+      lastname: 'User',
+      profilepicurl: "https://img.icons8.com/bubbles/100/man-with-beard-in-suit.png",
+      role: 'Team Member'
+    };
+  };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
@@ -362,87 +430,125 @@ export default function ViewProjectDetails({ project, onClose }) {
               <div className="bg-gray-50 p-6 rounded-xl">
                 <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
                   <Activity className="mr-2 text-orange-500" size={20} />
-                  Recent Team Activities
+                  Team Assignments
                 </h3>
                 
-                <div className="space-y-4">
-                  {teamActivities.map((activity) => (
-                    <div key={activity.id} className="bg-white p-4 rounded-lg border shadow-sm hover:shadow-md transition-shadow">
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex items-center space-x-2">
-                          <img 
-                            src={activity.member.profilepicurl || "https://img.icons8.com/bubbles/100/man-with-beard-in-suit.png"} 
-                            alt="Member"
-                            className="w-8 h-8 rounded-full object-cover"
-                          />
-                          <div>
-                            <h4 className="font-medium text-gray-800 text-sm">
-                              {activity.member.firstname || activity.member.username} {activity.member.lastname}
-                            </h4>
-                            <p className="text-xs text-gray-500">{activity.member.role}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          {getTypeIcon(activity.type)}
-                          {getStatusIcon(activity.status)}
-                        </div>
-                      </div>
-                      
-                      <h5 className="font-medium text-gray-700 mb-2">{activity.task}</h5>
-                      
-                      <div className="flex items-center justify-between text-xs text-gray-500 mb-2">
-                        <div className="flex items-center">
-                          <Clock className="mr-1" size={12} />
-                          Deadline: {formatDate(activity.deadline)}
-                        </div>
-                        {activity.submittedAt && (
-                          <div className="flex items-center">
-                            <CheckCircle className="mr-1" size={12} />
-                            Submitted: {formatDate(activity.submittedAt)}
-                          </div>
-                        )}
-                      </div>
-                      
-                      <div className="flex items-center justify-between">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusBadge(activity.status)}`}>
-                          {activity.status.charAt(0).toUpperCase() + activity.status.slice(1)}
-                        </span>
-                        {activity.status === 'late' && (
-                          <span className="text-xs text-red-600 font-medium">
-                            {Math.abs(new Date(activity.submittedAt) - new Date(activity.deadline)) / (1000 * 60 * 60 * 24)} days late
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                
-                <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                  <h4 className="font-medium text-blue-800 mb-2 flex items-center">
-                    <AlertCircle className="mr-2" size={16} />
-                    Activity Summary
-                  </h4>
-                  <div className="grid grid-cols-3 gap-3 text-center text-sm">
-                    <div>
-                      <div className="text-lg font-bold text-green-600">
-                        {teamActivities.filter(a => a.status === 'successful').length}
-                      </div>
-                      <div className="text-xs text-gray-600">Successful</div>
-                    </div>
-                    <div>
-                      <div className="text-lg font-bold text-yellow-600">
-                        {teamActivities.filter(a => a.status === 'late').length}
-                      </div>
-                      <div className="text-xs text-gray-600">Late</div>
-                    </div>
-                    <div>
-                      <div className="text-lg font-bold text-red-600">
-                        {teamActivities.filter(a => a.status === 'failed').length}
-                      </div>
-                      <div className="text-xs text-gray-600">Failed</div>
-                    </div>
+                {loadingAssignments ? (
+                  <div className="text-center py-8">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto"></div>
+                    <p className="mt-2 text-gray-600">Loading assignments...</p>
                   </div>
-                </div>
+                ) : error ? (
+                  <div className="bg-red-50 p-4 rounded-lg border border-red-200">
+                    <p className="text-red-600">Error loading assignments: {error}</p>
+                    <button 
+                      onClick={fetchTeamAssignments}
+                      className="mt-2 px-4 py-2 bg-red-100 text-red-800 rounded hover:bg-red-200 transition-colors"
+                    >
+                      Retry
+                    </button>
+                  </div>
+                ) : teamAssignments.length === 0 ? (
+                  <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200 text-center">
+                    <p className="text-yellow-700">No assignments found for this project.</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="space-y-4">
+                      {teamAssignments.map((assignment) => {
+                        const assignedMember = getTeamMemberById(assignment.assignedPerson);
+                        const isLate = assignment.endDate && new Date(assignment.endDate) < new Date() && !assignment.isCompleted;
+                        const status = assignment.isCompleted ? 'completed' : isLate ? 'late' : 'pending';
+                        
+                        return (
+                          <div key={assignment.id} className="bg-white p-4 rounded-lg border shadow-sm hover:shadow-md transition-shadow">
+                            <div className="flex items-start justify-between mb-2">
+                              <div className="flex items-center space-x-2">
+                                <img 
+                                  src={assignedMember.profilepicurl || "https://img.icons8.com/bubbles/100/man-with-beard-in-suit.png"} 
+                                  alt="Member"
+                                  className="w-8 h-8 rounded-full object-cover"
+                                />
+                                <div>
+                                  <h4 className="font-medium text-gray-800 text-sm">
+                                    {assignedMember.firstname || assignedMember.username} {assignedMember.lastname}
+                                  </h4>
+                                  <p className="text-xs text-gray-500">{assignedMember.role}</p>
+                                </div>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                {getStatusIcon(status)}
+                              </div>
+                            </div>
+                            
+                            <h5 className="font-medium text-gray-700 mb-2">{assignment.task}</h5>
+                            
+                            <div className="flex items-center justify-between text-xs text-gray-500 mb-2">
+                              <div className="flex items-center">
+                                <Calendar className="mr-1" size={12} />
+                                Start: {formatDate(assignment.startDate)}
+                              </div>
+                              <div className="flex items-center">
+                                <Clock className="mr-1" size={12} />
+                                End: {formatDate(assignment.endDate)}
+                              </div>
+                            </div>
+                            
+                            {assignment.comment && (
+                              <div className="bg-gray-50 p-2 rounded text-xs text-gray-600 mb-2">
+                                <strong>Comment:</strong> {assignment.comment}
+                              </div>
+                            )}
+                            
+                            {assignment.issue && (
+                              <div className="bg-red-50 p-2 rounded text-xs text-red-600 mb-2">
+                                <strong>Issue:</strong> {assignment.issue}
+                              </div>
+                            )}
+                            
+                            <div className="flex items-center justify-between">
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusBadge(status)}`}>
+                                {status.charAt(0).toUpperCase() + status.slice(1)}
+                              </span>
+                              {isLate && (
+                                <span className="text-xs text-red-600 font-medium">
+                                  Overdue
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    
+                    <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                      <h4 className="font-medium text-blue-800 mb-2 flex items-center">
+                        <AlertCircle className="mr-2" size={16} />
+                        Assignment Summary
+                      </h4>
+                      <div className="grid grid-cols-3 gap-3 text-center text-sm">
+                        <div>
+                          <div className="text-lg font-bold text-green-600">
+                            {teamAssignments.filter(a => a.isCompleted).length}
+                          </div>
+                          <div className="text-xs text-gray-600">Completed</div>
+                        </div>
+                        <div>
+                          <div className="text-lg font-bold text-yellow-600">
+                            {teamAssignments.filter(a => !a.isCompleted && a.endDate && new Date(a.endDate) < new Date()).length}
+                          </div>
+                          <div className="text-xs text-gray-600">Overdue</div>
+                        </div>
+                        <div>
+                          <div className="text-lg font-bold text-blue-600">
+                            {teamAssignments.filter(a => !a.isCompleted && (!a.endDate || new Date(a.endDate) >= new Date())).length}
+                          </div>
+                          <div className="text-xs text-gray-600">Pending</div>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
 

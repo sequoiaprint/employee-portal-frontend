@@ -5,17 +5,63 @@ import { fetchProfile, initializeProfileFromStorage } from '../../redux/profile/
 import Cookies from 'js-cookie';
 import {ClipboardList } from 'lucide-react';
 import TodoList from './TodoList';
+
+// Move these helper functions outside the component to avoid recreation
+const xorDecrypt = (encrypted, secretKey = '28032002') => {
+  try {
+    const decoded = atob(encrypted);
+    let result = '';
+    for (let i = 0; i < decoded.length; i++) {
+      const charCode = decoded.charCodeAt(i) ^ secretKey.charCodeAt(i % secretKey.length);
+      result += String.fromCharCode(charCode);
+    }
+    return result;
+  } catch (error) {
+    console.error('Decryption failed:', error);
+    return null;
+  }
+};
+
+const getAuthToken = () => {
+  const encryptedToken = Cookies.get('authToken');
+  if (!encryptedToken) {
+    return null;
+  }
+
+  const token = xorDecrypt(encryptedToken);
+  if (!token) {
+    console.warn('Failed to decrypt auth token');
+    return null;
+  }
+
+  return token;
+};
+
+const getUserUid = () => {
+  const encryptedUserUid = Cookies.get('userUid');
+  if (!encryptedUserUid) {
+    return null;
+  }
+
+  const userUid = encryptedUserUid;
+  if (!userUid) {
+    console.warn('Failed to decrypt user UID');
+    return null;
+  }
+
+  return userUid;
+};
+
 const Header = ({ isSidebarCollapsed }) => {
   const { user } = useSelector((state) => state.auth);
   const { currentProfile, loading } = useSelector((state) => state.profile);
-  // console.log(user)
-  // console.log("user:" +user+ "\nprofile"+currentProfile)
   const dispatch = useDispatch();
   const location = useLocation();
   const navigate = useNavigate();
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
-const [showTodoDropdown, setShowTodoDropdown] = useState(false);
-const [remainingCount, setRemainingCount] = useState(0);
+  const [showTodoDropdown, setShowTodoDropdown] = useState(false);
+  const [remainingCount, setRemainingCount] = useState(0);
+
   // Initialize profile from storage on first render
   useEffect(() => {
     const initializeProfile = async () => {
@@ -39,10 +85,50 @@ const [remainingCount, setRemainingCount] = useState(0);
     initializeProfile();
   }, [dispatch, user?.uid]);
 
+  // Fetch remaining tasks count independently
+  useEffect(() => {
+    const fetchRemainingCount = async () => {
+      try {
+        const userUid = getUserUid();
+        if (!userUid) return;
+        
+        const token = getAuthToken();
+        if (!token) return;
 
-  // const fullName = currentProfile 
-  //   ? `${currentProfile.firstname || ''} ${currentProfile.lastname || ''}`.trim() 
-  //   : user?.name || '';
+        const response = await fetch(`http://localhost:9000/api/assignment/assigned-person/${userUid}`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (!response.ok) {
+          console.error('Failed to fetch tasks for count');
+          return;
+        }
+        
+        const data = await response.json();
+        
+        if (Array.isArray(data)) {
+          // Count incomplete tasks
+          const remaining = data.filter(item => item.isCompleted !== 1).length;
+          setRemainingCount(remaining);
+        }
+        
+      } catch (err) {
+        console.error("Error fetching remaining count:", err);
+      }
+    };
+
+    // Fetch count on component mount
+    fetchRemainingCount();
+
+    // Optionally refresh count every 5 minutes
+    const interval = setInterval(fetchRemainingCount, 5 * 60 * 1000);
+    
+    return () => clearInterval(interval);
+  }, []);
 
   const getPageTitle = () => {
     const path = location.pathname;
@@ -65,12 +151,14 @@ const [remainingCount, setRemainingCount] = useState(0);
     navigate('/profile');
     setShowProfileDropdown(false);
   };
- const userDisplayData = currentProfile || user || {};
+
+  const userDisplayData = currentProfile || user || {};
   const fullName = currentProfile 
     ? `${currentProfile.firstname || ''} ${currentProfile.lastname || ''}`.trim() 
     : user?.name || '';
   const email = currentProfile?.email || user?.email || 'user@example.com';
-const getProfileDisplay = () => {
+
+  const getProfileDisplay = () => {
     if (userDisplayData?.profilepicurl) {
       return (
         <img
@@ -87,6 +175,15 @@ const getProfileDisplay = () => {
     );
   };
 
+  // Handle todo dropdown with count refresh
+  const handleTodoClick = () => {
+    setShowTodoDropdown(!showTodoDropdown);
+  };
+
+  // Handle count updates from TodoList when it's open
+  const handleRemainingChange = (count) => {
+    setRemainingCount(count);
+  };
 
   return (
     <header className="bg-[#eb772b] shadow-lg border-b border-gray-100 sticky top-0 z-30 backdrop-blur-sm">
@@ -167,28 +264,27 @@ const getProfileDisplay = () => {
           </h1>
 
           <div className="flex items-center space-x-6">
-<div className="relative">
-  <button
-    className="text-white flex flex-row items-center relative"
-    onClick={() => setShowTodoDropdown(!showTodoDropdown)}
-  >
-    <ClipboardList size={30} />
-    
-    {/* Badge for remaining count */}
-    {remainingCount > 0 && (
-      <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
-        {remainingCount}
-      </span>
-    )}
-  </button>
+            <div className="relative">
+              <button
+                className="text-white flex flex-row items-center relative"
+                onClick={handleTodoClick}
+              >
+                <ClipboardList size={30} />
+                
+                {/* Badge for remaining count - now always shows if there are remaining tasks */}
+                {remainingCount > 0 && (
+                  <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center animate-pulse">
+                    {remainingCount}
+                  </span>
+                )}
+              </button>
 
-  {showTodoDropdown && (
-    <div className="absolute right-0 mt-2 z-50">
-      <TodoList onRemainingChange={setRemainingCount} />
-    </div>
-  )}
-</div>
-
+              {showTodoDropdown && (
+                <div className="absolute right-0 mt-2 z-50">
+                  <TodoList onRemainingChange={handleRemainingChange} />
+                </div>
+              )}
+            </div>
             
             <div className="hidden lg:block text-right">
               <p className="text-sm text-white">Welcome back,</p>
