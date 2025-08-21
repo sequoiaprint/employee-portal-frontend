@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Sparkles, Plus, Trash2, Check, ChevronUp, ChevronDown, CheckCircle, Circle } from 'lucide-react';
+import { X, Save, Sparkles, Plus, Trash2, Check, ChevronUp, ChevronDown, CheckCircle, Circle, Printer } from 'lucide-react';
 import Cookies from 'js-cookie';
 import PhotoUploader from '../../Global/uploader';
 import TeamSelect from '../../Global/TeamSelect';
@@ -20,7 +20,8 @@ const ProjectForm = ({ project, onSubmit, onCancel, operationStatus, operationEr
     description: '',
     urls: [],
     milestones: [],
-    milestones_status: []
+    milestones_status: [],
+    isPrintProject: 0 // New field for print option
   });
   const [imageUrls, setImageUrls] = useState([]);
   const [uid] = useState(Cookies.get('userUid') || '');
@@ -103,7 +104,8 @@ const ProjectForm = ({ project, onSubmit, onCancel, operationStatus, operationEr
         description: project.description || '',
         urls: normalizedUrls,
         milestones: normalizedMilestones,
-        milestones_status: statusArray
+        milestones_status: statusArray,
+        isPrintProject: project.isPrintProject || 0 // Set existing value or default to 0
       });
       
       setImageUrls(normalizedUrls);
@@ -299,7 +301,8 @@ const ProjectForm = ({ project, onSubmit, onCancel, operationStatus, operationEr
       description: formData.description,
       created_by: uid,
       milestones: milestonesToSubmit,
-      milestones_status: finalStatuses.join(',')
+      milestones_status: finalStatuses.join(','),
+      isPrintProject: parseInt(formData.isPrintProject) // Ensure it's an integer
     };
     
     onSubmit(dataToSubmit);
@@ -417,6 +420,36 @@ const ProjectForm = ({ project, onSubmit, onCancel, operationStatus, operationEr
               onChange={handleTeamChange}
             />
           </div>
+          
+          {/* Print Project Option */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Print Project</label>
+            <div className="flex items-center gap-4">
+              <label className="inline-flex items-center">
+                <input
+                  type="radio"
+                  name="isPrintProject"
+                  value="1"
+                  checked={formData.isPrintProject == 1}
+                  onChange={handleChange}
+                  className="form-radio h-4 w-4 text-orange-600"
+                />
+                <span className="ml-2">Yes</span>
+              </label>
+              <label className="inline-flex items-center">
+                <input
+                  type="radio"
+                  name="isPrintProject"
+                  value="0"
+                  checked={formData.isPrintProject == 0}
+                  onChange={handleChange}
+                  className="form-radio h-4 w-4 text-orange-600"
+                />
+                <span className="ml-2">No</span>
+              </label>
+            </div>
+          </div>
+          
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-1">Goals</label>
             <textarea
@@ -598,7 +631,7 @@ const ProjectForm = ({ project, onSubmit, onCancel, operationStatus, operationEr
   );
 };
 
-// Individual Milestone Item Component
+// Individual Milestone Item Component (unchanged)
 const MilestoneItem = ({ milestone, index, status, totalMilestones, onEdit, onDelete, onMoveUp, onMoveDown, onToggleStatus }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState(milestone);

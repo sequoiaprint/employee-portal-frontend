@@ -19,7 +19,7 @@ const ProtectedRoute = () => {
     );
   }
 
-  if (!isLoading && !hasToken && !isAuthenticated) {
+  if (!isLoading && !hasToken && !isAuthenticated ) {
     // Remove specific items from localStorage
     localStorage.removeItem('activeTab');
     localStorage.removeItem('authToken');
