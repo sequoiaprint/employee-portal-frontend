@@ -164,24 +164,31 @@ export const getStoredCredentials = () => {
 
 export const login = createAsyncThunk(
   'auth/login',
-  async ({ name, password }, { rejectWithValue, dispatch }) => {
+  async ({ name, password, platform = 'employee' }, { rejectWithValue, dispatch }) => {
     try {
-      const response = await axios.post(`${API_URL}/login`, { name, password });
-      const { token, user } = response.data.data;
-     // console.log(user)
+      const response = await axios.post(`${API_URL}/login`, { 
+        name, 
+        password,
+        platform 
+      });
+      
+      const { token, user, platform: responsePlatform } = response.data.data;
       const uid = user.uid;
-      const role=user.role;
+      const role = user.role;
+      
       // Store token in both cookies and localStorage
       const encryptedToken = xorEncrypt(token);
       Cookies.set('authToken', encryptedToken, COOKIE_CONFIG);
       Cookies.set('userUid', uid, COOKIE_CONFIG);
-      Cookies.set('role',role,COOKIE_CONFIG)
+      Cookies.set('role', role, COOKIE_CONFIG);
+      Cookies.set('platform', responsePlatform, COOKIE_CONFIG); // Store platform
       localStorage.setItem('authToken', encryptedToken);
+      localStorage.setItem('platform', responsePlatform);
       
       storeCredentials(name, password);
-      dispatch(setCredentials({ name, password }));
+      dispatch(setCredentials({ name, password, platform: responsePlatform }));
       
-      return { token, user };
+      return { token, user, platform: responsePlatform };
     } catch (error) {
       console.error('Login error:', error);
       return rejectWithValue(error.response?.data?.message || 'Login failed');
@@ -237,12 +244,16 @@ export const logout = createAsyncThunk(
     try {
       const state = getState();
       const token = state.auth.token;
+      const platform = state.auth.platform || 'employee'; // Get platform from state or default
       
       if (token) {
-        await axios.post(`${API_URL}/logout`, {}, {
-          headers: { Authorization: `Bearer ${token}` },
-          timeout: 5000
-        });
+        await axios.post(`${API_URL}/logout`, 
+          { platform }, // Send platform in request body
+          {
+            headers: { Authorization: `Bearer ${token}` },
+            timeout: 5000
+          }
+        );
       }
     } catch (error) {
       console.warn('Server logout failed:', error.message);

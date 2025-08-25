@@ -204,32 +204,7 @@ const Assignment = () => {
           selectedStatus === 'overdue' ? 'Overdue' : ''
         }
       />
-      
-      <div className='px-6 flex flex-row gap-3 w-full'>
-        <Header
-          onCreateTask={handleCreateTask}
-          onProjectSelect={handleProjectSelect}
-          selectedProjectId={selectedProjectId}
-        />
-        
-        <div 
-          className="bg-white rounded-lg border flex flex-col justify-center border-gray-200 p-6 cursor-pointer hover:bg-gray-50 transition-colors"
-          onClick={handlePendingTasksClick}
-        >
-          <div className="flex gap-3 items-center justify-between">
-            <div className="text-orange-500">
-              <ClipboardList className="w-6 h-6" />
-            </div>
-            <div>
-              <p className="flex items-center text-lg font-semibold text-gray-800 ">Total Pending Requests</p>
-            </div>
-          </div>
-          <div className="text-2xl font-bold text-gray-900 mx-auto">{stats.pendingTasks || 0}</div>
-        </div>
-      </div>
-
-      <div className="px-6 py-6">
-        <div className="px-6 py-4">
+      <div className="px-6 pb-4">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-gray-900 mb-1">Project Management</h1>
@@ -244,69 +219,85 @@ const Assignment = () => {
             </button>
           </div>
         </div>
-
-        <div className="grid grid-cols-3 gap-6 mb-8 ">
-          {/* Make each stat card clickable */}
-          <div 
-            className="bg-white rounded-lg border border-gray-200 p-6 cursor-pointer hover:bg-gray-50 transition-colors"
-            onClick={() => handleViewTasksByStatus('total')}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-2xl font-bold text-gray-900">{stats.totalTasks}</p>
-                <p className="text-gray-600">Total Tasks</p>
-              </div>
-              <div className="text-orange-500">
-                <ClipboardList className="w-8 h-8" />
-              </div>
-            </div>
-          </div>
-
-          <div 
-            className="bg-white rounded-lg border border-gray-200 p-6 cursor-pointer hover:bg-gray-50 transition-colors"
-            onClick={() => handleViewTasksByStatus('completed')}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-2xl font-bold text-green-600">{stats.completedTasks}</p>
-                <p className="text-gray-600">Completed</p>
-              </div>
-              <div className="text-green-500">
-                <CheckCircle2 className="w-8 h-8" />
-              </div>
-            </div>
-          </div>
-
-          <div 
-            className="bg-white rounded-lg border border-gray-200 p-6 cursor-pointer hover:bg-gray-50 transition-colors"
-            onClick={() => handleViewTasksByStatus('in-progress')}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-2xl font-bold text-blue-600">{stats.inProgressTasks}</p>
-                <p className="text-gray-600">In Progress</p>
-              </div>
-              <div className="text-blue-500">
-                <RefreshCcw className="w-8 h-8" />
-              </div>
-            </div>
-          </div>
-
-          {/* <div 
-            className="bg-white rounded-lg border border-gray-200 p-6 cursor-pointer hover:bg-gray-50 transition-colors"
-            onClick={() => handleViewTasksByStatus('overdue')}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-2xl font-bold text-red-600">{stats.overdueTasks}</p>
-                <p className="text-gray-600">Overdue</p>
-              </div>
-              <div className="text-red-500">
-                <AlertTriangle className="w-8 h-8" />
-              </div>
-            </div>
-          </div> */}
+      
+<div className='px-6 w-full'>
+  <div className="flex flex-row gap-6 w-full">
+    <Header
+      onCreateTask={handleCreateTask}
+      onProjectSelect={handleProjectSelect}
+      selectedProjectId={selectedProjectId}
+    />
+    
+    {/* Pending Tasks Card */}
+    <div
+      className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 cursor-pointer hover:shadow-md hover:bg-gray-50 transition-all duration-200 min-w-[200px] flex-1"
+      onClick={handlePendingTasksClick}
+    >
+      <div className="flex items-center gap-4">
+        <div className="bg-orange-100 p-3 rounded-lg">
+          <ClipboardList className="w-6 h-6 text-orange-600" />
         </div>
+        <div className="flex-1">
+          <p className="text-sm font-medium text-gray-600 mb-1">Total Pending Requests</p>
+          <p className="text-2xl font-bold text-gray-900">{stats.pendingTasks || 0}</p>
+        </div>
+      </div>
+    </div>
+
+    {/* Total Tasks Card */}
+    <div
+      className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 cursor-pointer hover:shadow-md hover:bg-gray-50 transition-all duration-200 min-w-[180px] flex-1"
+      onClick={() => handleViewTasksByStatus('total')}
+    >
+      <div className="flex items-center gap-4">
+        <div className="bg-orange-100 p-3 rounded-lg">
+          <ClipboardList className="w-6 h-6 text-orange-600" />
+        </div>
+        <div className="flex-1">
+          <p className="text-sm font-medium text-gray-600 mb-1">Total Tasks</p>
+          <p className="text-2xl font-bold text-gray-900">{stats.totalTasks}</p>
+        </div>
+      </div>
+    </div>
+
+    {/* Completed Tasks Card */}
+    <div
+      className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 cursor-pointer hover:shadow-md hover:bg-gray-50 transition-all duration-200 min-w-[180px] flex-1"
+      onClick={() => handleViewTasksByStatus('completed')}
+    >
+      <div className="flex items-center gap-4">
+        <div className="bg-green-100 p-3 rounded-lg">
+          <CheckCircle2 className="w-6 h-6 text-green-600" />
+        </div>
+        <div className="flex-1">
+          <p className="text-sm font-medium text-gray-600 mb-1">Completed</p>
+          <p className="text-2xl font-bold text-green-600">{stats.completedTasks}</p>
+        </div>
+      </div>
+    </div>
+
+    {/* In Progress Tasks Card */}
+    <div
+      className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 cursor-pointer hover:shadow-md hover:bg-gray-50 transition-all duration-200 min-w-[180px] flex-1"
+      onClick={() => handleViewTasksByStatus('in-progress')}
+    >
+      <div className="flex items-center gap-4">
+        <div className="bg-blue-100 p-3 rounded-lg">
+          <RefreshCcw className="w-6 h-6 text-blue-600" />
+        </div>
+        <div className="flex-1">
+          <p className="text-sm font-medium text-gray-600 mb-1">In Progress</p>
+          <p className="text-2xl font-bold text-blue-600">{stats.inProgressTasks}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+      <div className="px-6 py-6">
+        
+
+
 
         <div className="flex gap-6 h-[calc(100vh-400px)]">
           <div className="flex-shrink-0">

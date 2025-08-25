@@ -4,6 +4,7 @@ import Cookies from 'js-cookie';
 import { useDispatch } from 'react-redux';
 import { deleteAssignment, fetchAssignments, resetAssignmentState } from '../../redux/assignment/assignment';
 import ViewEditTaskPopup from './ViewEditTaskPopup';
+import HtmlContentDisplay, { getPlainTextFromHtml, isHtmlContentEmpty } from '../Global/HtmlContentDisplay';
 
 const xorDecrypt = (encrypted, secretKey = '28032002') => {
   try {
@@ -197,6 +198,51 @@ const Task = ({ tasks, selectedDate, onTaskDeleted, onTaskUpdated }) => {
     return uid;
   };
 
+  // Function to truncate HTML content while preserving structure
+  const truncateHtmlContent = (html, wordLimit = 25) => {
+    if (!html) return '';
+    
+    // Get plain text to count words
+    const plainText = getPlainTextFromHtml(html);
+    const words = plainText.split(' ');
+    
+    if (words.length <= wordLimit) return html;
+    
+    // Create a temporary element to parse HTML
+    const tempElement = document.createElement('div');
+    tempElement.innerHTML = html;
+    
+    // Function to recursively truncate text content
+    const truncateNode = (node, remainingWords) => {
+      if (remainingWords <= 0) return 0;
+      
+      if (node.nodeType === Node.TEXT_NODE) {
+        const text = node.textContent;
+        const words = text.split(' ');
+        
+        if (words.length <= remainingWords) {
+          return remainingWords - words.length;
+        } else {
+          node.textContent = words.slice(0, remainingWords).join(' ') + '...';
+          return 0;
+        }
+      }
+      
+      if (node.nodeType === Node.ELEMENT_NODE) {
+        for (let i = 0; i < node.childNodes.length && remainingWords > 0; i++) {
+          remainingWords = truncateNode(node.childNodes[i], remainingWords);
+        }
+      }
+      
+      return remainingWords;
+    };
+    
+    // Truncate the content
+    truncateNode(tempElement, wordLimit);
+    
+    return tempElement.innerHTML;
+  };
+
   const tasksForSelectedDate = getTasksForDate(selectedDate, tasks);
 
   const handleDeleteTask = async (taskId) => {
@@ -214,7 +260,7 @@ const Task = ({ tasks, selectedDate, onTaskDeleted, onTaskUpdated }) => {
       } catch (error) {
         console.error('Failed to delete task:', error);
         setIsDeleting(null);
-        alert('Failed to delete task. Please try again.');
+        // alert('Failed to delete task. Please try again.');
       }
     }
   };
@@ -244,19 +290,25 @@ const Task = ({ tasks, selectedDate, onTaskDeleted, onTaskUpdated }) => {
         </div>
       ) : (
         <div className="flex-1 overflow-y-auto">
-          <div className="space-y-4">
+          {/* Changed from space-y-4 to grid layout */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {tasksForSelectedDate.map(task => {
               const canEdit = isAdmin || CurrentUid === task.assignee;
-              
+
               return (
                 <div
                   key={task.id}
-                  className={`border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow ${isDeleting === task.id ? 'opacity-50 pointer-events-none' : ''
+                  className={`border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow h-fit ${isDeleting === task.id ? 'opacity-50 pointer-events-none' : ''
                     }`}
                 >
                   <div className="flex items-start justify-between mb-3">
-                    <h3 className="font-medium text-gray-900 flex-1 pr-4">{task.title}</h3>
-                    <div className='flex flex-row gap-3'>
+                    <div className="font-medium text-gray-900 flex-1 pr-2 text-sm leading-tight">
+                      <HtmlContentDisplay 
+                        content={truncateHtmlContent(task.title, 25)} 
+                        className="task-title-preview"
+                      />
+                    </div>
+                    <div className='flex flex-col gap-2 items-end'>
                       <span className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${getStatusBadge(task.status)}`}>
                         {getStatusText(task.status)}
                       </span>
@@ -268,48 +320,52 @@ const Task = ({ tasks, selectedDate, onTaskDeleted, onTaskUpdated }) => {
                             }`}
                           title="Delete task"
                         >
-                          <Trash2 size={16} />
+                          <Trash2 size={14} />
                         </button>
                       )}
-
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-4 text-sm text-gray-600 mb-3 flex-wrap">
+                  <div className="space-y-2 text-sm text-gray-600 mb-3">
                     <div className="flex items-center gap-1">
-                      <User size={14} className="text-gray-400" />
-                      <span>{getAssigneeName(task.assignee)}</span>
+                      <User size={12} className="text-gray-400 flex-shrink-0" />
+                      <span className="truncate text-xs">{getAssigneeName(task.assignee)}</span>
                     </div>
                     <div className="flex items-center gap-1">
                       {getStatusIcon(task.status)}
-                      <span>Due {task.dueDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                      <span className="text-xs">
+                        Due {task.dueDate.toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric'
+                        })}
+                      </span>
                     </div>
                     {task.comment && (
                       <div className="flex items-center gap-1">
-                        <MessageCircle size={14} className="text-gray-400" />
-                        <span>Comment</span>
+                        <MessageCircle size={12} className="text-gray-400 flex-shrink-0" />
+                        <span className="text-xs">Comment</span>
                       </div>
                     )}
                     {task.urls && (
                       <div className="flex items-center gap-1">
-                        <Link size={14} className="text-gray-400" />
-                        <span>Attachment</span>
+                        <Link size={12} className="text-gray-400 flex-shrink-0" />
+                        <span className="text-xs">Attachment</span>
                       </div>
                     )}
                   </div>
 
-                  <div className="text-sm text-gray-600 mb-3">
-                    {task.comment && (
-                      <p className="italic">"{task.comment}"</p>
-                    )}
-                  </div>
+                  {task.comment && (
+                    <div className="text-xs text-gray-600 mb-3">
+                      <p className="italic line-clamp-2">"{task.comment}"</p>
+                    </div>
+                  )}
 
                   {task.urls && (
                     <a
                       href={task.urls}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-sm text-blue-600 hover:text-blue-700 font-medium hover:underline transition-colors block mb-2"
+                      className="text-xs text-blue-600 hover:text-blue-700 font-medium hover:underline transition-colors block mb-2"
                     >
                       View Attachment
                     </a>
@@ -317,7 +373,7 @@ const Task = ({ tasks, selectedDate, onTaskDeleted, onTaskUpdated }) => {
 
                   <button
                     onClick={() => setSelectedTask(task)}
-                    className="text-sm text-blue-600 hover:text-blue-700 font-medium hover:underline transition-colors"
+                    className="text-xs text-blue-600 hover:text-blue-700 font-medium hover:underline transition-colors w-full text-left"
                   >
                     View Details
                   </button>

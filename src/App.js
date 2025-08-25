@@ -53,9 +53,9 @@ const App = () => {
           <Route path='/assignment' element={<Assignment/>}/>
           
           {/* Admin only route */}
-          <Route element={<AdminProtectedRoute />}>
+         
             <Route path='/manage' element={<ManagePage/>}/>
-          </Route>
+         
         </Route>
       </Routes>
     </Router>

@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { createAssignment, resetAssignmentState, fetchAssignments } from '../../redux/assignment/assignment';
 import Cookies from 'js-cookie';
 import UserSelect from '../Global/SelectProfile';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
-import { X, Plus, Trash2,CircleUser } from 'lucide-react';
+import { X, Plus, Trash2, CircleUser, Bold, List, ListOrdered } from 'lucide-react';
 import PhotoUploader from '../Global/uploader';
 
 const xorDecrypt = (encrypted, secretKey = '28032002') => {
@@ -45,6 +45,7 @@ const CreateTask = ({ isOpen, onClose, selectedProjectId }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [projectTeamMembers, setProjectTeamMembers] = useState([]);
   const [isLoadingProject, setIsLoadingProject] = useState(false);
+  const taskEditorRef = useRef(null);
 
   console.log(selectedProjectId);
 
@@ -65,6 +66,140 @@ const CreateTask = ({ isOpen, onClose, selectedProjectId }) => {
   });
 
   const [uploadedFiles, setUploadedFiles] = useState([]);
+
+  // Rich text editor functions
+  const handleBold = () => {
+    if (taskEditorRef.current) {
+      taskEditorRef.current.focus();
+      document.execCommand('bold', false, null);
+      // Update form data immediately after formatting
+      const content = taskEditorRef.current.innerHTML;
+      setFormData(prev => ({
+        ...prev,
+        task: content
+      }));
+    }
+  };
+
+  const handleBulletList = () => {
+    if (taskEditorRef.current) {
+      taskEditorRef.current.focus();
+      document.execCommand('insertUnorderedList', false, null);
+      // Force update after list creation
+      setTimeout(() => {
+        if (taskEditorRef.current) {
+          const content = taskEditorRef.current.innerHTML;
+          setFormData(prev => ({
+            ...prev,
+            task: content
+          }));
+        }
+      }, 10);
+    }
+  };
+
+  const handleNumberedList = () => {
+    if (taskEditorRef.current) {
+      taskEditorRef.current.focus();
+      document.execCommand('insertOrderedList', false, null);
+      // Force update after list creation
+      setTimeout(() => {
+        if (taskEditorRef.current) {
+          const content = taskEditorRef.current.innerHTML;
+          setFormData(prev => ({
+            ...prev,
+            task: content
+          }));
+        }
+      }, 10);
+    }
+  };
+
+  const handleTaskEditorKeyDown = (e) => {
+    // Handle Ctrl+B for bold
+    if (e.ctrlKey && e.key === 'b') {
+      e.preventDefault();
+      handleBold();
+      return;
+    }
+    
+    // Handle Enter key for better list formatting
+    if (e.key === 'Enter') {
+      const selection = window.getSelection();
+      if (selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        const node = range.startContainer;
+        
+        // Check if we're inside a list item
+        const listItem = node.nodeType === 3 ? node.parentElement : node;
+        if (listItem.tagName === 'LI') {
+          // If at the end of a list item, create a new list item
+          if (range.endOffset === node.length) {
+            e.preventDefault();
+            
+            // Create a new list item
+            const newListItem = document.createElement('li');
+            listItem.parentNode.insertBefore(newListItem, listItem.nextSibling);
+            
+            // Move cursor to the new list item
+            const newRange = document.createRange();
+            newRange.setStart(newListItem, 0);
+            newRange.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(newRange);
+            
+            // Update form data
+            setTimeout(() => {
+              if (taskEditorRef.current) {
+                const content = taskEditorRef.current.innerHTML;
+                setFormData(prev => ({
+                  ...prev,
+                  task: content
+                }));
+              }
+            }, 10);
+            return;
+          }
+        }
+      }
+      
+      // Default behavior for non-list items
+      setTimeout(() => {
+        if (taskEditorRef.current) {
+          const content = taskEditorRef.current.innerHTML;
+          setFormData(prev => ({
+            ...prev,
+            task: content
+          }));
+        }
+      }, 10);
+    }
+  };
+
+  const handleTaskEditorInput = (e) => {
+    const content = e.target.innerHTML;
+    setFormData(prev => ({
+      ...prev,
+      task: content
+    }));
+  };
+
+  // Handle paste events to maintain formatting
+  const handleTaskEditorPaste = (e) => {
+    e.preventDefault();
+    const paste = (e.clipboardData || window.clipboardData).getData('text/plain');
+    document.execCommand('insertText', false, paste);
+    
+    setTimeout(() => {
+      if (taskEditorRef.current) {
+        const content = taskEditorRef.current.innerHTML;
+        setFormData(prev => ({
+          ...prev,
+          task: content
+        }));
+      }
+    }, 10);
+  };
 
   // Fetch project data when selectedProjectId changes
   useEffect(() => {
@@ -177,19 +312,36 @@ const CreateTask = ({ isOpen, onClose, selectedProjectId }) => {
       issueUserId: ''
     });
     setUploadedFiles([]);
+    
+    // Clear the rich text editor
+    if (taskEditorRef.current) {
+      taskEditorRef.current.innerHTML = '';
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
 
+    // Get the HTML content from the editor for submission
+    const taskContent = taskEditorRef.current ? taskEditorRef.current.innerHTML.trim() : formData.task;
+    
+    // Validate that task content exists
+    if (!taskContent || taskContent === '<br>' || taskContent === '') {
+      alert('Please enter a task description');
+      setIsSubmitting(false);
+      return;
+    }
+
     const submissionData = {
       ...formData,
+      task: taskContent,
       urls: uploadedFiles.join(','),
       projectId: selectedProjectId
     };
 
-    console.log('Submitting data:', submissionData);
+    console.log('Submitting data with formatted task:', submissionData);
+    console.log('Task HTML content:', taskContent);
 
     // Use optimistic approach - close modal and refresh regardless of response
     try {
@@ -254,18 +406,93 @@ const CreateTask = ({ isOpen, onClose, selectedProjectId }) => {
 
         <form onSubmit={handleSubmit}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-            {/* Task Description */}
+            {/* Task Description with Rich Text Editor */}
             <div className="col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">Task Description*</label>
-              <textarea
-                name="task"
-                value={formData.task}
-                onChange={handleChange}
-                className="w-full p-2 border rounded"
-                rows={3}
-                required
-                disabled={isSubmitting}
+              
+              {/* Rich Text Toolbar */}
+              <div className="flex items-center gap-1 p-2 border border-b-0 rounded-t bg-gray-50">
+                <button
+                  type="button"
+                  onClick={handleBold}
+                  className="p-1.5 hover:bg-gray-200 rounded text-gray-600 hover:text-gray-800 transition-colors"
+                  title="Bold (Ctrl+B)"
+                  disabled={isSubmitting}
+                >
+                  <Bold size={16} />
+                </button>
+                
+                <div className="w-px h-4 bg-gray-300 mx-1"></div>
+                
+                <button
+                  type="button"
+                  onClick={handleBulletList}
+                  className="p-1.5 hover:bg-gray-200 rounded text-gray-600 hover:text-gray-800 transition-colors"
+                  title="Bullet List"
+                  disabled={isSubmitting}
+                >
+                  <List size={16} />
+                </button>
+                
+                <button
+                  type="button"
+                  onClick={handleNumberedList}
+                  className="p-1.5 hover:bg-gray-200 rounded text-gray-600 hover:text-gray-800 transition-colors"
+                  title="Numbered List"
+                  disabled={isSubmitting}
+                >
+                  <ListOrdered size={16} />
+                </button>
+              </div>
+
+              {/* Rich Text Editor */}
+              <div
+                ref={taskEditorRef}
+                contentEditable={!isSubmitting}
+                onInput={handleTaskEditorInput}
+                onKeyDown={handleTaskEditorKeyDown}
+                onPaste={handleTaskEditorPaste}
+                className="w-full p-3 border border-t-0 rounded-b min-h-[100px] focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent disabled:bg-gray-100"
+                style={{
+                  minHeight: '100px',
+                  maxHeight: '200px',
+                  overflowY: 'auto'
+                }}
+                data-placeholder="Enter task description... Use Ctrl+B for bold text"
+                suppressContentEditableWarning={true}
               />
+              
+              <p className="text-xs text-gray-500 mt-1">
+                Use <kbd className="px-1 py-0.5 bg-gray-100 border rounded text-xs">Ctrl+B</kbd> for bold, 
+                or use the toolbar buttons for formatting. HTML formatting will be preserved.
+              </p>
+
+              {/* Add CSS for placeholder and list styling */}
+              <style jsx>{`
+                div[contenteditable]:empty:before {
+                  content: attr(data-placeholder);
+                  color: #9CA3AF;
+                  pointer-events: none;
+                  position: absolute;
+                }
+                div[contenteditable] ul {
+                  list-style-type: disc;
+                  padding-left: 20px;
+                  margin: 10px 0;
+                }
+                div[contenteditable] ol {
+                  list-style-type: decimal;
+                  padding-left: 20px;
+                  margin: 10px 0;
+                }
+                div[contenteditable] li {
+                  margin: 5px 0;
+                  padding-left: 5px;
+                }
+                div[contenteditable] strong, div[contenteditable] b {
+                  font-weight: bold;
+                }
+              `}</style>
             </div>
 
             {/* Assigned Person */}
@@ -297,19 +524,15 @@ const CreateTask = ({ isOpen, onClose, selectedProjectId }) => {
                 <p className="text-sm text-gray-500 mt-1">Loading team members...</p>
               )}
               <div 
-  className='mt-4 flex flex-row gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors'
-  onClick={() => setFormData(prev => ({ ...prev, assignedPerson: uid }))}
->
-  <CircleUser className={formData.assignedPerson === uid ? 'text-orange-500' : 'text-gray-500'} />
-  <p className={`${formData.assignedPerson === uid ? 'text-orange-500 font-medium' : 'text-gray-500'}`}>
-    Assign Myself
-  </p>
-</div>
-
-              
+                className='mt-4 flex flex-row gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors'
+                onClick={() => setFormData(prev => ({ ...prev, assignedPerson: uid }))}
+              >
+                <CircleUser className={formData.assignedPerson === uid ? 'text-orange-500' : 'text-gray-500'} />
+                <p className={`${formData.assignedPerson === uid ? 'text-orange-500 font-medium' : 'text-gray-500'}`}>
+                  Assign Myself
+                </p>
+              </div>
             </div>
-
-              
 
             {/* Status */}
             <div>

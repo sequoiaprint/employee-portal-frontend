@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { X, ClipboardList, CheckCircle2, RefreshCcw, AlertTriangle, Search, Filter, ChevronDown, ChevronUp, Calendar, User } from 'lucide-react';
 import Cookies from 'js-cookie';
-
+import HtmlContentDisplay, { getPlainTextFromHtml, isHtmlContentEmpty } from '../Global/HtmlContentDisplay';
 const xorDecrypt = (encrypted, secretKey = '28032002') => {
   try {
     const decoded = atob(encrypted);
@@ -112,6 +112,49 @@ const ViewTaskByStatus = ({ isOpen, onClose, tasks, statusType, statusLabel }) =
 
     return uid;
   };
+    const truncateHtmlContent = (html, wordLimit = 25) => {
+      if (!html) return '';
+      
+      // Get plain text to count words
+      const plainText = getPlainTextFromHtml(html);
+      const words = plainText.split(' ');
+      
+      if (words.length <= wordLimit) return html;
+      
+      // Create a temporary element to parse HTML
+      const tempElement = document.createElement('div');
+      tempElement.innerHTML = html;
+      
+      // Function to recursively truncate text content
+      const truncateNode = (node, remainingWords) => {
+        if (remainingWords <= 0) return 0;
+        
+        if (node.nodeType === Node.TEXT_NODE) {
+          const text = node.textContent;
+          const words = text.split(' ');
+          
+          if (words.length <= remainingWords) {
+            return remainingWords - words.length;
+          } else {
+            node.textContent = words.slice(0, remainingWords).join(' ') + '...';
+            return 0;
+          }
+        }
+        
+        if (node.nodeType === Node.ELEMENT_NODE) {
+          for (let i = 0; i < node.childNodes.length && remainingWords > 0; i++) {
+            remainingWords = truncateNode(node.childNodes[i], remainingWords);
+          }
+        }
+        
+        return remainingWords;
+      };
+      
+      // Truncate the content
+      truncateNode(tempElement, wordLimit);
+      
+      return tempElement.innerHTML;
+    };
 
   // Get all assignee names for suggestions
   const allAssigneeNames = useMemo(() => {
@@ -346,7 +389,10 @@ const ViewTaskByStatus = ({ isOpen, onClose, tasks, statusType, statusLabel }) =
                   <div key={task.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
-                        <h3 className="font-medium text-gray-900">{task.title}</h3>
+                        <h3 className="font-medium text-gray-900"> <HtmlContentDisplay 
+                        content={truncateHtmlContent(task.title, 25)} 
+                        className="task-title-preview"
+                      /></h3>
                         <p className="text-sm text-gray-600 mt-1">
                           Assignee: {getAssigneeName(task.assignee) || 'Unassigned'}
                         </p>

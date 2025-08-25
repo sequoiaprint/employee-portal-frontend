@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { CountdownCircleTimer } from 'react-countdown-circle-timer';
-import { X, Edit2, Save, Clock, Calendar, User, Link, MessageCircle } from 'lucide-react';
+import { X, Edit2, Save, Clock, Calendar, User, Link, MessageCircle, Bold, List, ListOrdered } from 'lucide-react';
 import { useDispatch } from 'react-redux';
 import { updateAssignment } from '../../redux/assignment/assignment';
 import Cookies from 'js-cookie';
 import { useSelector } from 'react-redux';
+import HtmlContentDisplay, { getPlainTextFromHtml, isHtmlContentEmpty } from '../Global/HtmlContentDisplay';
 
 const xorDecrypt = (encrypted, secretKey = '28032002') => {
     try {
@@ -46,6 +47,8 @@ const ViewEditTaskPopup = ({ task, onClose, onTaskUpdated }) => {
     const CurrentUid = Cookies.get('userUid');
     const role = Cookies.get('role');
     const isAdmin = role === "Admin Ops";
+    const taskEditorRef = useRef(null);
+    const lastSelectionRef = useRef(null);
 
     // Determine if current user can edit this task
     const canEdit = isAdmin || CurrentUid === task.assignee;
@@ -70,8 +73,96 @@ const ViewEditTaskPopup = ({ task, onClose, onTaskUpdated }) => {
     };
 
     const { user } = useSelector((state) => state.auth);
-    //console.log(CurrentUid);
-    // console.log(user?.uid); 
+
+    // Save selection when editor loses focus
+    const saveSelection = () => {
+        const selection = window.getSelection();
+        if (selection.rangeCount > 0) {
+            lastSelectionRef.current = selection.getRangeAt(0);
+        }
+    };
+
+    // Restore selection when editor gains focus
+    const restoreSelection = () => {
+        if (lastSelectionRef.current) {
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(lastSelectionRef.current);
+        }
+    };
+
+    // Rich text editor functions
+    const handleBold = () => {
+        if (taskEditorRef.current) {
+            taskEditorRef.current.focus();
+            saveSelection();
+            document.execCommand('bold', false, null);
+            updateEditorContent();
+        }
+    };
+
+    const handleBulletList = () => {
+        if (taskEditorRef.current) {
+            taskEditorRef.current.focus();
+            saveSelection();
+            document.execCommand('insertUnorderedList', false, null);
+            updateEditorContent();
+        }
+    };
+
+    const handleNumberedList = () => {
+        if (taskEditorRef.current) {
+            taskEditorRef.current.focus();
+            saveSelection();
+            document.execCommand('insertOrderedList', false, null);
+            updateEditorContent();
+        }
+    };
+
+    const updateEditorContent = () => {
+        if (taskEditorRef.current) {
+            const content = taskEditorRef.current.innerHTML;
+            setEditedTask(prev => ({
+                ...prev,
+                title: content
+            }));
+        }
+    };
+
+    const handleTaskEditorKeyDown = (e) => {
+        // Handle Ctrl+B for bold
+        if (e.ctrlKey && e.key === 'b') {
+            e.preventDefault();
+            handleBold();
+            return;
+        }
+        
+        // Let the browser handle Enter key normally for contenteditable
+        // We'll update the content after a short delay
+        setTimeout(updateEditorContent, 10);
+    };
+
+    const handleTaskEditorInput = (e) => {
+        // Update content on input with a slight delay to avoid performance issues
+        setTimeout(updateEditorContent, 10);
+    };
+
+    // Handle paste events to maintain formatting
+    const handleTaskEditorPaste = (e) => {
+        e.preventDefault();
+        const paste = (e.clipboardData || window.clipboardData).getData('text/plain');
+        document.execCommand('insertText', false, paste);
+        updateEditorContent();
+    };
+
+    const handleTaskEditorFocus = () => {
+        restoreSelection();
+    };
+
+    const handleTaskEditorBlur = () => {
+        saveSelection();
+        updateEditorContent();
+    };
 
     const fetchProfile = async (assigneeId) => {
         if (!assigneeId) return null;
@@ -124,6 +215,26 @@ const ViewEditTaskPopup = ({ task, onClose, onTaskUpdated }) => {
         }
     }, [task]);
 
+    // Set editor content when switching to edit mode
+    useEffect(() => {
+        if (isEditing && taskEditorRef.current) {
+            taskEditorRef.current.innerHTML = editedTask.title || '';
+            // Focus the editor when entering edit mode
+            setTimeout(() => {
+                if (taskEditorRef.current) {
+                    taskEditorRef.current.focus();
+                    // Move cursor to end of content
+                    const range = document.createRange();
+                    range.selectNodeContents(taskEditorRef.current);
+                    range.collapse(false);
+                    const selection = window.getSelection();
+                    selection.removeAllRanges();
+                    selection.addRange(range);
+                }
+            }, 100);
+        }
+    }, [isEditing, editedTask.title]);
+
     const calculateTotalDuration = () => {
         if (!task.startDate || !task.dueDate) return 0;
         const start = new Date(task.startDate);
@@ -173,8 +284,18 @@ const ViewEditTaskPopup = ({ task, onClose, onTaskUpdated }) => {
                 return `${year}-${month}-${day}`;
             };
 
+            // Get the HTML content from the editor for submission
+            const taskContent = taskEditorRef.current ? taskEditorRef.current.innerHTML.trim() : editedTask.title;
+            
+            // Validate that task content exists
+            if (!taskContent || taskContent === '<br>' || taskContent === '') {
+                alert('Please enter a task description');
+                setIsUpdating(false);
+                return;
+            }
+
             const updateData = {
-                task: editedTask.title,
+                task: taskContent,
                 assignedPerson: task.assignee,
                 startDate: formatDateForBackend(editedTask.startDate),
                 endDate: formatDateForBackend(editedTask.dueDate),
@@ -333,15 +454,94 @@ const ViewEditTaskPopup = ({ task, onClose, onTaskUpdated }) => {
                                 <>
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                                            Title
+                                            Task Description*
                                         </label>
-                                        <input
-                                            type="text"
-                                            name="title"
-                                            value={editedTask.title || ''}
-                                            onChange={handleInputChange}
-                                            className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                        
+                                        {/* Rich Text Toolbar */}
+                                        <div className="flex items-center gap-1 p-2 border border-b-0 rounded-t bg-gray-50">
+                                            <button
+                                                type="button"
+                                                onClick={handleBold}
+                                                className="p-1.5 hover:bg-gray-200 rounded text-gray-600 hover:text-gray-800 transition-colors"
+                                                title="Bold (Ctrl+B)"
+                                                disabled={isUpdating}
+                                            >
+                                                <Bold size={16} />
+                                            </button>
+                                            
+                                            <div className="w-px h-4 bg-gray-300 mx-1"></div>
+                                            
+                                            <button
+                                                type="button"
+                                                onClick={handleBulletList}
+                                                className="p-1.5 hover:bg-gray-200 rounded text-gray-600 hover:text-gray-800 transition-colors"
+                                                title="Bullet List"
+                                                disabled={isUpdating}
+                                            >
+                                                <List size={16} />
+                                            </button>
+                                            
+                                            <button
+                                                type="button"
+                                                onClick={handleNumberedList}
+                                                className="p-1.5 hover:bg-gray-200 rounded text-gray-600 hover:text-gray-800 transition-colors"
+                                                title="Numbered List"
+                                                disabled={isUpdating}
+                                            >
+                                                <ListOrdered size={16} />
+                                            </button>
+                                        </div>
+
+                                        {/* Rich Text Editor */}
+                                        <div
+                                            ref={taskEditorRef}
+                                            contentEditable={!isUpdating}
+                                            onInput={handleTaskEditorInput}
+                                            onKeyDown={handleTaskEditorKeyDown}
+                                            onPaste={handleTaskEditorPaste}
+                                            onFocus={handleTaskEditorFocus}
+                                            onBlur={handleTaskEditorBlur}
+                                            className="w-full p-3 border border-t-0 rounded-b min-h-[100px] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
+                                            style={{
+                                                minHeight: '100px',
+                                                maxHeight: '200px',
+                                                overflowY: 'auto'
+                                            }}
+                                            data-placeholder="Enter task description... Use Ctrl+B for bold text"
+                                            suppressContentEditableWarning={true}
                                         />
+                                        
+                                        <p className="text-xs text-gray-500 mt-1">
+                                            Use <kbd className="px-1 py-0.5 bg-gray-100 border rounded text-xs">Ctrl+B</kbd> for bold, 
+                                            or use the toolbar buttons for formatting. HTML formatting will be preserved.
+                                        </p>
+
+                                        {/* Add CSS for placeholder and list styling */}
+                                        <style jsx>{`
+                                            div[contenteditable]:empty:before {
+                                                content: attr(data-placeholder);
+                                                color: #9CA3AF;
+                                                pointer-events: none;
+                                                position: absolute;
+                                            }
+                                            div[contenteditable] ul {
+                                                list-style-type: disc;
+                                                padding-left: 20px;
+                                                margin: 10px 0;
+                                            }
+                                            div[contenteditable] ol {
+                                                list-style-type: decimal;
+                                                padding-left: 20px;
+                                                margin: 10px 0;
+                                            }
+                                            div[contenteditable] li {
+                                                margin: 5px 0;
+                                                padding-left: 5px;
+                                            }
+                                            div[contenteditable] strong, div[contenteditable] b {
+                                                font-weight: bold;
+                                            }
+                                        `}</style>
                                     </div>
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -443,7 +643,15 @@ const ViewEditTaskPopup = ({ task, onClose, onTaskUpdated }) => {
                                 </>
                             ) : (
                                 <>
-                                    <h3 className="text-lg font-semibold text-gray-900">{task.title}</h3>
+                                    <h3 className="text-lg font-semibold text-gray-900">Task Description</h3>
+                                    
+                                    <div className="bg-gray-50 p-4 rounded border">
+                                        {task.title ? (
+                                            <HtmlContentDisplay content={task.title} />
+                                        ) : (
+                                            <p className="text-gray-500 italic">No description provided</p>
+                                        )}
+                                    </div>
 
                                     <div className="flex gap-2">
                                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${displayStatus === 'completed' ? 'bg-green-100 text-green-800' :

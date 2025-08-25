@@ -52,6 +52,18 @@ const getUserUid = () => {
   return userUid;
 };
 
+const getLocalStorageProfile = () => {
+  try {
+    const userProfile = localStorage.getItem('userProfile');
+    if (userProfile) {
+      return JSON.parse(userProfile);
+    }
+  } catch (error) {
+    console.error('Error parsing userProfile from localStorage:', error);
+  }
+  return null;
+};
+
 const Header = ({ isSidebarCollapsed }) => {
   const { user } = useSelector((state) => state.auth);
   const { currentProfile, loading } = useSelector((state) => state.profile);
@@ -61,6 +73,13 @@ const Header = ({ isSidebarCollapsed }) => {
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const [showTodoDropdown, setShowTodoDropdown] = useState(false);
   const [remainingCount, setRemainingCount] = useState(0);
+  const [localProfile, setLocalProfile] = useState(null);
+
+  // Get profile from localStorage on component mount
+  useEffect(() => {
+    const profile = getLocalStorageProfile();
+    setLocalProfile(profile);
+  }, []);
 
   // Initialize profile from storage on first render
   useEffect(() => {
@@ -152,11 +171,19 @@ const Header = ({ isSidebarCollapsed }) => {
     setShowProfileDropdown(false);
   };
 
-  const userDisplayData = currentProfile || user || {};
-  const fullName = currentProfile 
-    ? `${currentProfile.firstname || ''} ${currentProfile.lastname || ''}`.trim() 
-    : user?.name || '';
-  const email = currentProfile?.email || user?.email || 'user@example.com';
+  // Get user data with fallback priority: currentProfile -> user -> localProfile
+  const userDisplayData = currentProfile || user || localProfile || {};
+  
+  // Get full name: firstname + lastname if available, otherwise username
+  const getFullName = () => {
+    if (userDisplayData.firstname && userDisplayData.lastname) {
+      return `${userDisplayData.firstname} ${userDisplayData.lastname}`.trim();
+    }
+    return userDisplayData.username || userDisplayData.name || 'User';
+  };
+
+  const fullName = getFullName();
+  const email = userDisplayData.email || 'user@example.com';
 
   const getProfileDisplay = () => {
     if (userDisplayData?.profilepicurl) {
@@ -217,8 +244,8 @@ const Header = ({ isSidebarCollapsed }) => {
               {showProfileDropdown && (
                 <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50">
                   <div className="px-4 py-3 border-b border-gray-100">
-                    <p className="text-sm font-medium text-gray-900">{fullName || 'User'}</p>
-                    <p className="text-xs text-gray-500">{currentProfile?.email || user?.email || 'user@example.com'}</p>
+                    <p className="text-sm font-medium text-gray-900">{fullName}</p>
+                    <p className="text-xs text-gray-500">{email}</p>
                   </div>
                   <button
                     onClick={handleProfileClick}
@@ -226,21 +253,15 @@ const Header = ({ isSidebarCollapsed }) => {
                   >
                     View Profile
                   </button>
-                  {/* <button
-                    onClick={() => setShowProfileDropdown(false)}
-                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors duration-150"
-                  >
-                    Settings
-                  </button> */}
                 </div>
               )}
             </div>
           </div>
 
           <div className="text-center">
-            <h1 className="text-[9px] text-white font-bold">
+            {/* <h1 className="text-[9px] text-white font-bold">
               {getPageTitle()}
-            </h1>
+            </h1> */}
           </div>
         </div>
 
@@ -258,10 +279,6 @@ const Header = ({ isSidebarCollapsed }) => {
               />
             </div>
           </div>
-
-          <h1 className="text-[8px] tracking-widest sm:text-[9px] md:text-[14px] lg:text-[18px] xl:text-[20px] 2xl:text-[24px] text-white font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
-            {getPageTitle()}
-          </h1>
 
           <div className="flex items-center space-x-6">
             <div className="relative">
@@ -289,7 +306,7 @@ const Header = ({ isSidebarCollapsed }) => {
             <div className="hidden lg:block text-right">
               <p className="text-sm text-white">Welcome back,</p>
               <p className="text-sm font-semibold text-white">
-                {fullName || 'User'}
+                {fullName}
               </p>
             </div>
 
@@ -304,10 +321,10 @@ const Header = ({ isSidebarCollapsed }) => {
                 <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50">
                   <div className="px-4 py-3 border-b border-gray-100">
                     <p className="text-sm font-medium text-gray-900">
-                      {fullName || 'User'}
+                      {fullName}
                     </p>
                     <p className="text-xs text-gray-500">
-                      {currentProfile?.email || user?.email || 'user@example.com'}
+                      {email}
                     </p>
                   </div>
                   <button
@@ -316,12 +333,6 @@ const Header = ({ isSidebarCollapsed }) => {
                   >
                     View Profile
                   </button>
-                  {/* <button
-                    onClick={() => setShowProfileDropdown(false)}
-                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors duration-150"
-                  >
-                    Settings
-                  </button> */}
                 </div>
               )}
             </div>

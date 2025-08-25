@@ -10,6 +10,7 @@ import { fetchClients } from '../../redux/client/client';
 const Home = () => {
     const { user } = useSelector((state) => state.auth);
     const { currentProfile, loading } = useSelector((state) => state.profile);
+    console.log(currentProfile)
     const { items: newsItems, loading: newsLoading } = useSelector((state) => state.news);
     const { insights } = useSelector((state) => state.insight);
     const { clients, isLoading, error } = useSelector(state => state.clients || {});
@@ -17,8 +18,11 @@ const Home = () => {
     const location = useLocation();
     const navigate = useNavigate();
    
-    const fullName = currentProfile ? `${currentProfile.firstname || ''} ${currentProfile.lastname || ''}`.trim() : user?.name || '';
-    
+let fullName = '';
+if (currentProfile) {
+  const nameParts = `${currentProfile.firstname || ''} ${currentProfile.lastname || ''}`.trim();
+  fullName = nameParts || currentProfile.username || '';
+}
     useEffect(() => {
         const timer = setTimeout(() => {
             dispatch(fetchClients());
