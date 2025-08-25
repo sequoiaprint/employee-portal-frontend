@@ -21,16 +21,18 @@ const ProtectedRoute = () => {
 
   if (!isLoading && !hasToken && !isAuthenticated ) {
     // Remove specific items from localStorage
-    localStorage.removeItem('activeTab');
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('profilesList');
-    localStorage.removeItem('userProfile');
+  localStorage.removeItem('authToken');
+  localStorage.removeItem('userProfile');
+  localStorage.removeItem('profilesList');
+  localStorage.removeItem('lastSelectedProjectId');
+  localStorage.removeItem('selectedDate');
 
     // Remove specific cookies
     Cookies.remove('adam');
     Cookies.remove('eve');
     Cookies.remove('userUid');
-    Cookies.remove('authToken'); // remove this too just in case
+    Cookies.remove('authToken');
+    Cookies.remove('role') // remove this too just in case
 
     return <Navigate to="/login" replace />;
   }
@@ -39,7 +41,7 @@ const ProtectedRoute = () => {
     <div className="min-h-screen bg-gray-50 relative">
       <Header />
       <Sidebar />
-      <main className="pt-16 min-h-screen overflow-auto transition-all duration-300 ease-in-out">
+      <main id="main-content" className="pt-16 min-h-screen overflow-auto transition-all duration-300 ease-in-out">
         <div className="w-full">
           <Outlet />
         </div>

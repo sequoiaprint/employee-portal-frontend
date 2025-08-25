@@ -4,7 +4,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { getAllInsights, createInsight } from '../../redux/Insights/Insights';
 import InsightCard from '../../component/Insights/InsightCard';
 import AddEditInsight from '../../component/Insights/AddEditInsight';
-
+import Cookies from 'js-cookie';
 const Insights = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -12,7 +12,8 @@ const Insights = () => {
   const { user } = useSelector((state) => state.auth);
   const { currentProfile } = useSelector((state) => state.profile);
   const [showAddModal, setShowAddModal] = useState(false);
-
+    const role = Cookies.get('role');
+    const isAdmin = role === "Admin Ops"
   useEffect(() => {
     dispatch(getAllInsights());
   }, [dispatch]);
@@ -68,6 +69,8 @@ const Insights = () => {
 
       <div className="mb-8 flex justify-between items-center">
         <h2 className="text-2xl font-bold text-gray-800">Latest Insights</h2>
+         {isAdmin &&(
+          <>
         {currentProfile && (
           <button
             onClick={() => setShowAddModal(true)}
@@ -79,6 +82,8 @@ const Insights = () => {
             Add Insight
           </button>
         )}
+        </>
+         )}
       </div>
 
       {loading && !insights.length ? (
@@ -101,6 +106,8 @@ const Insights = () => {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9.5a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
           </svg>
           <h3 className="text-xl font-medium text-gray-600 mb-2">No Insights yet</h3>
+            {isAdmin &&(
+          <>
           <p className="text-gray-500 mb-4">Be the first to share Insights & Trends.</p>
           {currentProfile && (
             <button
@@ -113,6 +120,8 @@ const Insights = () => {
               Add First Insight
             </button>
           )}
+          </>
+            )}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

@@ -42,8 +42,9 @@ const togglePasswordVisibility = () => {
           <img 
             src="https://voicemsgsequoia.s3.ap-south-1.amazonaws.com/sequiaPrintLogo.png" 
             alt="Logo" 
-            className="mx-auto h-16 w-auto"
+            className="mx-auto mt-4 mb-2 w-56"
           />
+              <p className="text-gray-600 mt-2 text-lg">Internal Employee Portal</p>
         </div>
         {error && <div className="text-red-500 text-center">{error}</div>}
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
@@ -55,6 +56,7 @@ const togglePasswordVisibility = () => {
               id="username"
               name="username"
               type="text"
+              placeholder="Enter your username"
               required
               className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
               value={username}
@@ -73,6 +75,7 @@ const togglePasswordVisibility = () => {
                 required
                 className="mt-1 block w-full px-3 py-2 pr-10 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                 value={password}
+                placeholder="Enter your password"
                 onChange={(e) => setPassword(e.target.value)}
               />
               <button

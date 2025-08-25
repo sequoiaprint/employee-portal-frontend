@@ -62,7 +62,7 @@ export default function ViewProjectDetails({ project, onClose }) {
         return;
       }
 
-      const response = await fetch(`http://localhost:9000/api/assignment/project/${project.id}`, {
+      const response = await fetch(`https://internalApi.sequoia-print.com/api/assignment/project/${project.id}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'

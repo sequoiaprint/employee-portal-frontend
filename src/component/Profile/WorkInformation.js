@@ -64,7 +64,7 @@ const WorkInformation = ({ formData, onUpdate }) => {
 
       try {
         const response = await fetch(
-          `http://localhost:9000/api/profiles/${formData.manager}`,
+          `https://internalApi.sequoia-print.com/api/profiles/${formData.manager}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,

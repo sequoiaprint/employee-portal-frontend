@@ -95,7 +95,7 @@ const Header = ({ isSidebarCollapsed }) => {
         const token = getAuthToken();
         if (!token) return;
 
-        const response = await fetch(`http://localhost:9000/api/assignment/assigned-person/${userUid}`, {
+        const response = await fetch(`https://internalApi.sequoia-print.com/api/assignment/assigned-person/${userUid}`, {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -226,12 +226,12 @@ const Header = ({ isSidebarCollapsed }) => {
                   >
                     View Profile
                   </button>
-                  <button
+                  {/* <button
                     onClick={() => setShowProfileDropdown(false)}
                     className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors duration-150"
                   >
                     Settings
-                  </button>
+                  </button> */}
                 </div>
               )}
             </div>
@@ -316,12 +316,12 @@ const Header = ({ isSidebarCollapsed }) => {
                   >
                     View Profile
                   </button>
-                  <button
+                  {/* <button
                     onClick={() => setShowProfileDropdown(false)}
                     className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors duration-150"
                   >
                     Settings
-                  </button>
+                  </button> */}
                 </div>
               )}
             </div>

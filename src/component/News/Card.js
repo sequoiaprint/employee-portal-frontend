@@ -2,18 +2,19 @@ import React, { useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { deleteNews, updateNews } from '../../redux/news/news';
 import AddEditNews from './AddNews'; // Update with correct path
-
+import Cookies from 'js-cookie';
 const Card = ({ news, onDeleted, onUpdated }) => {
   const dispatch = useDispatch();
   const [showEditModal, setShowEditModal] = useState(false);
-  
+  const role = Cookies.get('role');
+  const isAdmin = role === "Admin Ops";
   // Safe defaults for news data
   const safeNews = news || {};
   const safeAuthor = safeNews.author || {};
-  
+
   // Parse URLs if they exist (assuming comma-separated URLs)
   const imageUrls = safeNews.urls ? safeNews.urls.split(',').filter(url => url.trim()) : [];
-  
+
   // Format date
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
@@ -56,7 +57,7 @@ const Card = ({ news, onDeleted, onUpdated }) => {
   };
 
   const [isLoading, setIsLoading] = useState(false);
-  
+
   // Safely get full name
   const fullName = `${safeAuthor.firstname || ''} ${safeAuthor.lastname || ''}`.trim() || 'Anonymous';
 
@@ -153,22 +154,24 @@ const Card = ({ news, onDeleted, onUpdated }) => {
                 </span>
               </div>
             </div>
+             {isAdmin &&(
             <div className='absolute bottom-0 right-0'>
-              <button 
+              <button
                 onClick={handleDelete}
                 className="inline-flex items-center p-2 text-white text-sm font-medium rounded-lg hover:from-orange-600 hover:to-red-600 transition-all duration-300 transform hover:scale-105"
                 title="Delete news"
               >
-                <img width="30" height="30" src="https://img.icons8.com/plasticine/50/filled-trash.png" alt="delete"/>
+                <img width="30" height="30" src="https://img.icons8.com/plasticine/50/filled-trash.png" alt="delete" />
               </button>
-              <button 
+              <button
                 onClick={handleEdit}
                 className="inline-flex items-center p-2 text-white text-sm font-medium rounded-lg hover:from-orange-600 hover:to-red-600 transition-all duration-300 transform hover:scale-105"
                 title="Edit news"
               >
-                <img width="30" height="30" src="https://img.icons8.com/plasticine/50/create-new.png" alt="edit"/>
+                <img width="30" height="30" src="https://img.icons8.com/plasticine/50/create-new.png" alt="edit" />
               </button>
             </div>
+             )}
           </div>
         </div>
       </div>

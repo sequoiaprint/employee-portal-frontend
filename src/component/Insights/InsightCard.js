@@ -2,12 +2,13 @@ import React, { useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { deleteInsight } from '../../redux/Insights/Insights';
 import AddEditInsight from './AddEditInsight';
-
+import Cookies from 'js-cookie';
 const InsightCard = ({ insight, onDeleted, onUpdated }) => {
   const dispatch = useDispatch();
   const [showEditModal, setShowEditModal] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  
+     const role = Cookies.get('role');
+      const isAdmin = role === "Admin Ops"
   if (!insight || typeof insight !== 'object') {
     return <div>Loading insight...</div>;
   }
@@ -171,6 +172,7 @@ const InsightCard = ({ insight, onDeleted, onUpdated }) => {
 
           {/* Footer */}
           <div className="flex items-center justify-between mt-auto">
+             {isAdmin &&(
             <div className="flex items-center space-x-2">
               <button 
                 onClick={handleDelete}
@@ -191,6 +193,7 @@ const InsightCard = ({ insight, onDeleted, onUpdated }) => {
                 </svg>
               </button>
             </div>
+             )}
             <div className="text-sm text-gray-500">
               {urls.length > 0 && `${urls.length} image${urls.length > 1 ? 's' : ''}`}
             </div>

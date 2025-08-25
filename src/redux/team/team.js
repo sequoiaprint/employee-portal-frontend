@@ -31,11 +31,15 @@ const getAuthToken = () => {
 };
 
 const handleUnauthorized = () => {
-  const cookiesToClear = ['authToken', 'adam', 'eve', 'tokenExpiration', 'userUid'];
+  const cookiesToClear = ['authToken', 'adam', 'eve', 'tokenExpiration', 'userUid','role'];
   cookiesToClear.forEach(cookie => {
     Cookies.remove(cookie, { path: '/' });
   });
-  localStorage.removeItem('authToken');
+    localStorage.removeItem('authToken');
+  localStorage.removeItem('userProfile');
+  localStorage.removeItem('profilesList');
+  localStorage.removeItem('lastSelectedProjectId');
+  localStorage.removeItem('selectedDate');
   window.location.href = '/login';
 };
 
@@ -50,7 +54,7 @@ export const fetchTeams = createAsyncThunk('teams/fetchAll', async (_, { rejectW
     return rejectWithValue('No auth token');
   }
   try {
-    const res = await axios.get('http://localhost:9000/api/teams', {
+    const res = await axios.get('https://internalApi.sequoia-print.com/api/teams', {
       headers: { Authorization: `Bearer ${token}` }
     });
     return res.data.data;
@@ -67,7 +71,7 @@ export const createTeam = createAsyncThunk('teams/create', async (teamData, { re
     return rejectWithValue('No auth token');
   }
   try {
-    const res = await axios.post('http://localhost:9000/api/teams', teamData, {
+    const res = await axios.post('https://internalApi.sequoia-print.com/api/teams', teamData, {
       headers: { Authorization: `Bearer ${token}` }
     });
     return res.data.data;
@@ -84,7 +88,7 @@ export const updateTeam = createAsyncThunk('teams/update', async ({ id, updatedD
     return rejectWithValue('No auth token');
   }
   try {
-    await axios.put(`http://localhost:9000/api/teams/${id}`, updatedData, {
+    await axios.put(`https://internalApi.sequoia-print.com/api/teams/${id}`, updatedData, {
       headers: { Authorization: `Bearer ${token}` }
     });
     return { id, ...updatedData };
@@ -101,7 +105,7 @@ export const deleteTeam = createAsyncThunk('teams/delete', async (id, { rejectWi
     return rejectWithValue('No auth token');
   }
   try {
-    await axios.delete(`http://localhost:9000/api/teams/${id}`, {
+    await axios.delete(`https://internalApi.sequoia-print.com/api/teams/${id}`, {
       headers: { Authorization: `Bearer ${token}` }
     });
     return id;

@@ -4,7 +4,8 @@ import { initializeAuth } from './redux/auth/auth';
 import { initializeProfileFromStorage } from './redux/profile/profile';
 import { useDispatch } from 'react-redux';
 import ProtectedRoute from './component/Global/ProtectedRoute';
-
+import AdminProtectedRoute from './component/Global/AdminProtectedRoute'; // Add this import
+import Cookies from 'js-cookie';
 import Home from './pages/Home/Home';
 import Profile from './pages/Profile/Profile';
 import EditProfile from './pages/Profile/EditProfile';
@@ -17,9 +18,10 @@ import ManagePage from './pages/Manage/Manage';
 import ClientPage from './pages/client/client';
 import ProjectsPage from './pages/Projects/Projects';
 import Assignment from './pages/Assignment/Assignment';
+
 const App = () => {
   const dispatch = useDispatch();
-
+  
   useEffect(() => {
     console.log('App: Starting auth initialization...');
     
@@ -40,17 +42,20 @@ const App = () => {
         <Route path="/login" element={<Login />} />
         <Route element={<ProtectedRoute />}>
           <Route path="/" element={<Home />} />
-        
           <Route path="/profile" element={<Profile />} />
           <Route path="/profile/edit" element={<EditProfile />} />
           <Route path='/news' element={<News/>}/>
           <Route path='/insights' element={<Insights/>}/>
           <Route path='/hr' element={<HrHub/>}/>
-           <Route path='/resources' element={<Resources/>}/>
-           <Route path='/manage' element={<ManagePage/>}/>
-           <Route path='/clients' element={<ClientPage/>}/>
-           <Route path='/projects' element={<ProjectsPage/>}/>
-           <Route path='/assignment' element={<Assignment/>}/>
+          <Route path='/resources' element={<Resources/>}/>
+          <Route path='/clients' element={<ClientPage/>}/>
+          <Route path='/projects' element={<ProjectsPage/>}/>
+          <Route path='/assignment' element={<Assignment/>}/>
+          
+          {/* Admin only route */}
+          <Route element={<AdminProtectedRoute />}>
+            <Route path='/manage' element={<ManagePage/>}/>
+          </Route>
         </Route>
       </Routes>
     </Router>

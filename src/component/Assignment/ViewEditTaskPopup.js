@@ -4,6 +4,7 @@ import { X, Edit2, Save, Clock, Calendar, User, Link, MessageCircle } from 'luci
 import { useDispatch } from 'react-redux';
 import { updateAssignment } from '../../redux/assignment/assignment';
 import Cookies from 'js-cookie';
+import { useSelector } from 'react-redux';
 
 const xorDecrypt = (encrypted, secretKey = '28032002') => {
     try {
@@ -42,6 +43,35 @@ const ViewEditTaskPopup = ({ task, onClose, onTaskUpdated }) => {
     const [isUpdating, setIsUpdating] = useState(false);
     const [assigneeProfile, setAssigneeProfile] = useState(null);
     const [profileLoading, setProfileLoading] = useState(false);
+    const CurrentUid = Cookies.get('userUid');
+    const role = Cookies.get('role');
+    const isAdmin = role === "Admin Ops";
+
+    // Determine if current user can edit this task
+    const canEdit = isAdmin || CurrentUid === task.assignee;
+
+    // Determine task status for display
+    const getTaskStatus = () => {
+        const now = new Date();
+        const dueDate = new Date(task.dueDate || task.endDate);
+
+        // If status is completed or pending, show as is
+        if (task.status === 'completed' || task.status === 'pending') {
+            return task.status;
+        }
+
+        // If status is in-progress and past due date, show as overdue
+        if (task.status === 'in-progress' && now > dueDate) {
+            return 'overdue';
+        }
+
+        // Otherwise return the current status
+        return task.status || 'pending';
+    };
+
+    const { user } = useSelector((state) => state.auth);
+    //console.log(CurrentUid);
+    // console.log(user?.uid); 
 
     const fetchProfile = async (assigneeId) => {
         if (!assigneeId) return null;
@@ -54,7 +84,7 @@ const ViewEditTaskPopup = ({ task, onClose, onTaskUpdated }) => {
                 return null;
             }
 
-            const response = await fetch(`http://localhost:9000/api/profiles/${assigneeId}`, {
+            const response = await fetch(`https://internalApi.sequoia-print.com/api/profiles/${assigneeId}`, {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }
@@ -131,54 +161,54 @@ const ViewEditTaskPopup = ({ task, onClose, onTaskUpdated }) => {
         }));
     };
 
-const handleSave = async () => {
-  setIsUpdating(true);
-  try {
-    const formatDateForBackend = (date) => {
-      if (!date) return '';
-      const d = new Date(date);
-      const year = d.getFullYear();
-      const month = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
-      return `${year}-${month}-${day}`;
+    const handleSave = async () => {
+        setIsUpdating(true);
+        try {
+            const formatDateForBackend = (date) => {
+                if (!date) return '';
+                const d = new Date(date);
+                const year = d.getFullYear();
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            };
+
+            const updateData = {
+                task: editedTask.title,
+                assignedPerson: task.assignee,
+                startDate: formatDateForBackend(editedTask.startDate),
+                endDate: formatDateForBackend(editedTask.dueDate),
+                isCompleted: editedTask.status === 'completed',
+                comment: editedTask.comment || '',
+                urls: editedTask.urls || ''
+            };
+
+            console.log("Before dispatch", updateData);
+
+            // Dispatch the update action and wait for it to complete
+            const result = await dispatch(updateAssignment({
+                id: task.id,
+                assignmentData: updateData
+            })).unwrap();
+
+            console.log("after dispatch", result);
+
+            // Call the callback to notify parent component to refresh
+            if (onTaskUpdated) {
+                onTaskUpdated(true);
+            }
+
+            // Close the popup after successful update
+            onClose();
+
+        } catch (error) {
+            console.error('Failed to update task:', error);
+            console.error('Error details:', error.payload || error.message);
+            alert(`Failed to update task: ${error.payload || error.message || 'Unknown error'}`);
+        } finally {
+            setIsUpdating(false);
+        }
     };
-
-    const updateData = {
-      task: editedTask.title,
-      assignedPerson: task.assignee,
-      startDate: formatDateForBackend(editedTask.startDate),
-      endDate: formatDateForBackend(editedTask.dueDate),
-      isCompleted: editedTask.status === 'completed',
-      comment: editedTask.comment || '',
-      urls: editedTask.urls || ''
-    };
-    
-    console.log("Before dispatch", updateData);
-    
-    // Dispatch the update action and wait for it to complete
-    const result = await dispatch(updateAssignment({
-      id: task.id,
-      assignmentData: updateData
-    })).unwrap();
-    
-    console.log("after dispatch", result);
-    
-    // Call the callback to notify parent component to refresh
-    if (onTaskUpdated) {
-      onTaskUpdated(true);
-    }
-
-    // Close the popup after successful update
-    onClose();
-
-  } catch (error) {
-    console.error('Failed to update task:', error);
-    console.error('Error details:', error.payload || error.message);
-    alert(`Failed to update task: ${error.payload || error.message || 'Unknown error'}`);
-  } finally {
-    setIsUpdating(false);
-  }
-};
 
     const formatDateInput = (date) => {
         if (!date) return '';
@@ -200,6 +230,7 @@ const handleSave = async () => {
 
     const totalDuration = calculateTotalDuration();
     const remainingTime = calculateRemainingTime();
+    const displayStatus = getTaskStatus();
 
     const getAssigneeDisplayName = () => {
         if (profileLoading) return 'Loading...';
@@ -247,7 +278,7 @@ const handleSave = async () => {
                                     onComplete={() => ({ shouldRepeat: false, delay: 0 })}
                                 >
                                     {({ remainingTime: timerRemainingTime }) => {
-                                        if (timerRemainingTime <= 0) {
+                                        if (timerRemainingTime <= 0 && displayStatus === 'overdue') {
                                             return (
                                                 <div className="flex flex-col items-center">
                                                     <span className="text-xl font-bold text-red-500">Overdue</span>
@@ -346,20 +377,37 @@ const handleSave = async () => {
                                             <button
                                                 type="button"
                                                 onClick={() => handleStatusChange('in-progress')}
-                                                className={`px-3 py-1 rounded text-sm transition-colors ${editedTask.status === 'in-progress'
-                                                    ? 'bg-blue-100 text-blue-800 border border-blue-300'
-                                                    : 'bg-gray-100 text-gray-800 border border-gray-300 hover:bg-gray-200'
-                                                    }`}
+                                                className={`px-3 py-1 rounded text-sm transition-colors 
+        ${editedTask.status === 'in-progress'
+                                                        ? 'bg-blue-100 text-blue-800 border border-blue-300'
+                                                        : 'bg-gray-100 text-gray-800 border border-gray-300 hover:bg-gray-200'
+                                                    } 
+        ${!isAdmin ? 'opacity-50 cursor-not-allowed' : ''}`}
+
                                             >
                                                 In Progress
                                             </button>
                                             <button
                                                 type="button"
+                                                onClick={() => handleStatusChange('pending')}
+                                                className={`px-3 py-1 rounded text-sm transition-colors 
+        ${editedTask.status === 'pending'
+                                                        ? 'bg-blue-100 text-blue-800 border border-blue-300'
+                                                        : 'bg-gray-100 text-gray-800 border border-gray-300 hover:bg-gray-200'
+                                                    } 
+        ${!isAdmin ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                            >
+                                                Pending
+                                            </button>
+                                            <button
+                                                type="button"
                                                 onClick={() => handleStatusChange('completed')}
-                                                className={`px-3 py-1 rounded text-sm transition-colors ${editedTask.status === 'completed'
-                                                    ? 'bg-green-100 text-green-800 border border-green-300'
-                                                    : 'bg-gray-100 text-gray-800 border border-gray-300 hover:bg-gray-200'
-                                                    }`}
+                                                className={`px-3 py-1 rounded text-sm transition-colors 
+        ${editedTask.status === 'completed'
+                                                        ? 'bg-blue-100 text-blue-800 border border-blue-300'
+                                                        : 'bg-gray-100 text-gray-800 border border-gray-300 hover:bg-gray-200'
+                                                    } 
+        ${!isAdmin ? 'opacity-50 cursor-not-allowed' : ''}`}
                                             >
                                                 Completed
                                             </button>
@@ -398,15 +446,17 @@ const handleSave = async () => {
                                     <h3 className="text-lg font-semibold text-gray-900">{task.title}</h3>
 
                                     <div className="flex gap-2">
-                                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${task.status === 'completed' ? 'bg-green-100 text-green-800' :
-                                            task.status === 'in-progress' ? 'bg-blue-100 text-blue-800' :
-                                                task.status === 'overdue' ? 'bg-red-100 text-red-800' :
-                                                    'bg-gray-100 text-gray-800'
+                                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${displayStatus === 'completed' ? 'bg-green-100 text-green-800' :
+                                            displayStatus === 'in-progress' ? 'bg-blue-100 text-blue-800' :
+                                                displayStatus === 'overdue' ? 'bg-red-100 text-red-800' :
+                                                    displayStatus === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                                                        'bg-gray-100 text-gray-800'
                                             }`}>
-                                            {task.status === 'in-progress' ? 'In Progress' :
-                                                task.status && task.status.charAt ?
-                                                    task.status.charAt(0).toUpperCase() + task.status.slice(1) :
-                                                    'Pending'}
+                                            {displayStatus === 'in-progress' ? 'In Progress' :
+                                                displayStatus === 'overdue' ? 'Overdue' :
+                                                    displayStatus && displayStatus.charAt ?
+                                                        displayStatus.charAt(0).toUpperCase() + displayStatus.slice(1) :
+                                                        'Pending'}
                                         </span>
                                     </div>
 
@@ -477,14 +527,17 @@ const handleSave = async () => {
                                 </button>
                             </>
                         ) : (
-                            <button
-                                type="button"
-                                onClick={() => setIsEditing(true)}
-                                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center gap-2 transition-colors"
-                            >
-                                <Edit2 size={16} />
-                                Edit Task
-                            </button>
+                            // Only show edit button if user has permission to edit
+                            canEdit && (
+                                <button
+                                    type="button"
+                                    onClick={() => setIsEditing(true)}
+                                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center gap-2 transition-colors"
+                                >
+                                    <Edit2 size={16} />
+                                    Edit Task
+                                </button>
+                            )
                         )}
                     </div>
                 </div>

@@ -48,7 +48,7 @@ const ViewTaskByStatus = ({ isOpen, onClose, tasks, statusType, statusLabel }) =
         return;
       }
 
-      const response = await fetch(`http://localhost:9000/api/profiles/${uid}`, {
+      const response = await fetch(`https://internalApi.sequoia-print.com/api/profiles/${uid}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }

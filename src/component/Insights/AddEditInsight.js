@@ -173,7 +173,7 @@ const AddEditInsight = ({
       
       if (isEditMode) {
         response = await axios.put(
-          `http://localhost:9000/api/insight/${editingInsight.id}`,
+          `https://internalApi.sequoia-print.com/api/insight/${editingInsight.id}`,
           insightData,
           {
             headers: { Authorization: `Bearer ${token}` },
@@ -182,7 +182,7 @@ const AddEditInsight = ({
         );
       } else {
         response = await axios.post(
-          `http://localhost:9000/api/insight/${currentProfile.uid}`,
+          `https://internalApi.sequoia-print.com/api/insight/${currentProfile.uid}`,
           insightData,
           {
             headers: { Authorization: `Bearer ${token}` },

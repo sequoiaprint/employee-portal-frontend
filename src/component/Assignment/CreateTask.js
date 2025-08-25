@@ -5,7 +5,7 @@ import Cookies from 'js-cookie';
 import UserSelect from '../Global/SelectProfile';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
-import { X, Plus, Trash2 } from 'lucide-react';
+import { X, Plus, Trash2,CircleUser } from 'lucide-react';
 import PhotoUploader from '../Global/uploader';
 
 const xorDecrypt = (encrypted, secretKey = '28032002') => {
@@ -81,7 +81,7 @@ const CreateTask = ({ isOpen, onClose, selectedProjectId }) => {
         if (!token) {
           return;
         }
-        const response = await fetch(`http://localhost:9000/api/projets/${selectedProjectId}`, {
+        const response = await fetch(`https://internalApi.sequoia-print.com/api/projets/${selectedProjectId}`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -296,7 +296,20 @@ const CreateTask = ({ isOpen, onClose, selectedProjectId }) => {
               {isLoadingProject && (
                 <p className="text-sm text-gray-500 mt-1">Loading team members...</p>
               )}
+              <div 
+  className='mt-4 flex flex-row gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors'
+  onClick={() => setFormData(prev => ({ ...prev, assignedPerson: uid }))}
+>
+  <CircleUser className={formData.assignedPerson === uid ? 'text-orange-500' : 'text-gray-500'} />
+  <p className={`${formData.assignedPerson === uid ? 'text-orange-500 font-medium' : 'text-gray-500'}`}>
+    Assign Myself
+  </p>
+</div>
+
+              
             </div>
+
+              
 
             {/* Status */}
             <div>

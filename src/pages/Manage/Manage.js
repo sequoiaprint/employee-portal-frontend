@@ -6,10 +6,14 @@ import ProjectComponent from '../../component/Manage/project/project';
 import TeamComponent from '../../component/Manage/team/team';
 
 import { useDispatch, useSelector } from 'react-redux';
+
 const ManagePage = () => {
   const dispatch = useDispatch();
   const [profileCount, setProfileCount] = useState(0);
   const [clientCount, setClientCount] = useState(0);
+  const [projectCount, setProjectCount] = useState(0);
+  const [teamCount, setTeamCount] = useState(0);
+  
   // Get the active tab from localStorage or default to 'overview'
   const [activeTab, setActiveTab] = useState(() => {
     const savedTab = typeof window !== 'undefined' ? localStorage.getItem('activeTab') : null;
@@ -17,12 +21,20 @@ const ManagePage = () => {
   });
 
   const handleProfileCountChange = (count) => {
-  setProfileCount(count);
-};
-const handleClientCountChange = (count) => {
-  setClientCount(count);
+    setProfileCount(count);
   };
-// console.log(profileCount)
+  
+  const handleClientCountChange = (count) => {
+    setClientCount(count);
+  };
+  
+  const handleProjectCountChange = (count) => {
+    setProjectCount(count);
+  };
+  
+  const handleTeamCountChange = (count) => {
+    setTeamCount(count);
+  };
 
   // Save the active tab to localStorage whenever it changes
   useEffect(() => {
@@ -39,10 +51,10 @@ const handleClientCountChange = (count) => {
     { id: 'team', name: 'Teams', icon: Users, color: 'bg-orange-400' },
   ];
 
-  // Enhanced preview components with better styling
-  const PreviewCard = ({ title, children, onViewAll, icon: Icon }) => (
-    <div className="bg-white rounded-xl shadow-sm border border-orange-100 hover:shadow-md transition-shadow duration-200">
-      <div className="p-6 border-b border-orange-50">
+  // Enhanced preview components with better styling and scroll containers
+  const PreviewCard = ({ title, children, onViewAll, icon: Icon, height = 'h-80' }) => (
+    <div className={`bg-white rounded-xl shadow-sm border border-orange-100 hover:shadow-md transition-shadow duration-200 flex flex-col ${height}`}>
+      <div className="p-4 border-b border-orange-50 flex-shrink-0">
         <div className="flex justify-between items-center">
           <div className="flex items-center space-x-3">
             {Icon && (
@@ -55,15 +67,40 @@ const handleClientCountChange = (count) => {
           {onViewAll && (
             <button
               onClick={onViewAll}
-              className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:from-orange-600 hover:to-orange-700 transition-all duration-200 shadow-sm"
+              className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:from-orange-600 hover:to-orange-700 transition-all duration-200 shadow-sm"
             >
               View All
             </button>
           )}
         </div>
       </div>
-      <div className="p-6">
-        {children}
+      <div className="flex-1 overflow-hidden min-h-0">
+        <div className="h-full overflow-y-auto p-4 scrollbar-thin scrollbar-thumb-orange-300 scrollbar-track-gray-100">
+          <div className="space-y-3">
+            {children}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Full page container for individual components
+  const FullPageContainer = ({ children, title, icon: Icon }) => (
+    <div className="bg-white rounded-xl shadow-sm border border-orange-100 flex flex-col h-[calc(100vh-220px)]">
+      <div className="p-6 border-b border-orange-50 flex-shrink-0">
+        <div className="flex items-center space-x-3">
+          {Icon && (
+            <div className="p-2 bg-orange-100 rounded-lg">
+              <Icon className="h-6 w-6 text-orange-600" />
+            </div>
+          )}
+          <h2 className="text-2xl font-bold text-gray-900">{title}</h2>
+        </div>
+      </div>
+      <div className="flex-1 overflow-hidden min-h-0">
+        <div className="h-full overflow-y-auto p-6 scrollbar-thin scrollbar-thumb-orange-300 scrollbar-track-gray-100">
+          {children}
+        </div>
       </div>
     </div>
   );
@@ -74,7 +111,7 @@ const handleClientCountChange = (count) => {
       icon={UserCheck}
       onViewAll={() => setActiveTab('employee')}
     >
-      <EmployeeComponent preview={true} onProfileCountChange={handleProfileCountChange} />
+      <EmployeeComponent preview={true} previewLimit={5} onProfileCountChange={handleProfileCountChange} />
     </PreviewCard>
   );
 
@@ -85,12 +122,6 @@ const handleClientCountChange = (count) => {
           <p className="text-sm font-medium text-gray-600 mb-1">{label}</p>
           <p className="text-2xl font-bold text-gray-900">{value}</p>
         </div>
-        {/* {trend && (
-          <div className="flex items-center space-x-1 text-orange-600">
-            <TrendingUp className="h-4 w-4" />
-            <span className="text-sm font-medium">{trend}</span>
-          </div>
-        )} */}
       </div>
     </div>
   );
@@ -99,27 +130,27 @@ const handleClientCountChange = (count) => {
     switch (activeTab) {
       case 'client':
         return (
-          <div className="space-y-6">
+          <FullPageContainer title="Client Management" icon={Users}>
             <ClientComponent onClientsCountChange={handleClientCountChange} />
-          </div>
+          </FullPageContainer>
         );
       case 'employee':
         return (
-          <div className="space-y-6">
+          <FullPageContainer title="Employee Management" icon={UserCheck}>
             <EmployeeComponent onProfileCountChange={handleProfileCountChange} />
-          </div>
+          </FullPageContainer>
         );
       case 'project':
         return (
-          <div className="space-y-6">
-            <ProjectComponent />
-          </div>
+          <FullPageContainer title="Project Management" icon={Briefcase}>
+            <ProjectComponent onProjectsCountChange={handleProjectCountChange} />
+          </FullPageContainer>
         );
       case 'team':
         return (
-          <div className="space-y-6">
+          <FullPageContainer title="Team Management" icon={Users}>
             <TeamComponent />
-          </div>
+          </FullPageContainer>
         );
       default:
         return (
@@ -128,37 +159,54 @@ const handleClientCountChange = (count) => {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <StatCard label="Total Clients" value={clientCount} trend="+0%" />
               <StatCard label="Active Employees" value={profileCount} trend="+0%" />
-              <StatCard label="Ongoing Projects" value="1" trend="+0%" />
-              <StatCard label="Active Teams" value="1" trend="+0%" />
+              <StatCard label="Ongoing Projects" value={projectCount} trend="+0%" />
+              <StatCard label="Active Teams" value={teamCount} trend="+0%" />
             </div>
 
-            {/* Main Content Grid */}
+            {/* Main Content Grid with different heights for different components */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <PreviewCard
                 title="Project Management"
                 icon={Briefcase}
+                height="h-[670px]"
                 onViewAll={() => setActiveTab('project')}
               >
-                <ProjectComponent preview={true} />
+                <div className="space-y-4">
+                  <ProjectComponent preview={true} previewLimit={2} onProjectsCountChange={handleProjectCountChange} />
+                </div>
               </PreviewCard>
+              
               <PreviewCard
                 title="Client Management"
                 icon={Users}
+                height="h-[670px]"
                 onViewAll={() => setActiveTab('client')}
               >
-                <ClientComponent preview={true} onClientsCountChange={handleClientCountChange} />
+                <div className="space-y-4">
+                  <ClientComponent preview={true} previewLimit={4} onClientsCountChange={handleClientCountChange} />
+                </div>
               </PreviewCard>
 
-              <EmployeePreview onProfileCountChange={handleProfileCountChange} />
-
-
+              <PreviewCard
+                title="Employee Management"
+                icon={UserCheck}
+                height="h-[670px]"
+                onViewAll={() => setActiveTab('employee')}
+              >
+                <div className="space-y-4">
+                  <EmployeeComponent preview={true} previewLimit={3} onProfileCountChange={handleProfileCountChange} />
+                </div>
+              </PreviewCard>
 
               <PreviewCard
                 title="Team Management"
                 icon={Users}
+                height="h-[670px]"
                 onViewAll={() => setActiveTab('team')}
               >
-                <TeamComponent preview={true} />
+                <div className="space-y-4">
+                  <TeamComponent preview={true} previewLimit={2} onTeamCountChange={handleTeamCountChange} />
+                </div>
               </PreviewCard>
             </div>
           </div>
@@ -180,24 +228,10 @@ const handleClientCountChange = (count) => {
                     Management Dashboard
                   </h1>
                 </div>
-
               </div>
-
             </div>
           </div>
         </div>
-
-        {/* Enhanced Search Bar */}
-        {/* <div className="mb-6">
-          <div className="relative max-w-md">
-            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-            <input
-              type="text"
-              placeholder="Search across all modules..."
-              className="pl-12 pr-4 py-3 border border-orange-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 w-full bg-white shadow-sm transition-all duration-200 hover:shadow-md"
-            />
-          </div>
-        </div> */}
 
         {/* Enhanced Navigation Tabs */}
         <div className="mb-8">
@@ -209,10 +243,11 @@ const handleClientCountChange = (count) => {
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${activeTab === tab.id
+                    className={`flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${
+                      activeTab === tab.id
                         ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-md transform scale-105'
                         : 'text-gray-700 hover:bg-orange-50 hover:text-orange-700'
-                      }`}
+                    }`}
                   >
                     <Icon className="h-4 w-4" />
                     <span className="hidden sm:inline">{tab.name}</span>
@@ -229,7 +264,7 @@ const handleClientCountChange = (count) => {
         </div>
       </div>
 
-      {/* Custom CSS for animations */}
+      {/* Custom CSS for animations and scrollbar styling */}
       <style jsx>{`
         @keyframes fadeIn {
           from { opacity: 0; transform: translateY(10px); }
@@ -237,6 +272,39 @@ const handleClientCountChange = (count) => {
         }
         .animate-fadeIn {
           animation: fadeIn 0.3s ease-out;
+        }
+        
+        /* Custom scrollbar styles */
+        .scrollbar-thin {
+          scrollbar-width: thin;
+        }
+        
+        .scrollbar-thumb-orange-300::-webkit-scrollbar-thumb {
+          background-color: #fed7aa;
+          border-radius: 6px;
+        }
+        
+        .scrollbar-track-gray-100::-webkit-scrollbar-track {
+          background-color: #f3f4f6;
+        }
+        
+        .scrollbar-thin::-webkit-scrollbar {
+          width: 6px;
+          height: 6px;
+        }
+        
+        .scrollbar-thin::-webkit-scrollbar-thumb {
+          background-color: #fed7aa;
+          border-radius: 6px;
+        }
+        
+        .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+          background-color: #fdba74;
+        }
+        
+        .scrollbar-thin::-webkit-scrollbar-track {
+          background-color: #f3f4f6;
+          border-radius: 6px;
         }
       `}</style>
     </div>

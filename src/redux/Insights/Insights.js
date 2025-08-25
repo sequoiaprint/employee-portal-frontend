@@ -31,16 +31,20 @@ const getAuthToken = () => {
 
 const handleUnauthorized = () => {
   // Clear all auth data
-  const cookiesToClear = ['authToken', 'adam', 'eve', 'tokenExpiration', 'userUid'];
+  const cookiesToClear = ['authToken', 'adam', 'eve', 'tokenExpiration', 'userUid','role'];
   cookiesToClear.forEach(cookie => {
     Cookies.remove(cookie, { path: '/' });
   });
   localStorage.removeItem('authToken');
+  localStorage.removeItem('userProfile');
+  localStorage.removeItem('profilesList');
+  localStorage.removeItem('lastSelectedProjectId');
+  localStorage.removeItem('selectedDate');
   window.location.href = '/login';
 };
 
 // Base API URL
-const API_URL = 'http://localhost:9000/api/insight';
+const API_URL = 'https://internalApi.sequoia-print.com/api/insight';
 
 // Thunks
 export const createInsight = createAsyncThunk(

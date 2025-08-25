@@ -4,12 +4,14 @@ import { useSelector, useDispatch } from 'react-redux';
 import Card from '../../component/News/Card';
 import AddNews from '../../component/News/AddNews';
 import { fetchNews, addNews, deleteNews } from '../../redux/news/news';
-
+import Cookies from 'js-cookie';
 const News = () => {
     const dispatch = useDispatch();
     const { items: allNews, loading, error } = useSelector(state => state.news);
     const [showAddNews, setShowAddNews] = useState(false);
     const navigate = useNavigate();
+    const role = Cookies.get('role');
+    const isAdmin = role === "Admin Ops";
     //console.log(allNews)
     // Fetch news data when component mounts
     useEffect(() => {
@@ -117,8 +119,12 @@ const News = () => {
             </header>
 
             {/* Add News Button */}
+
+
+         
             <div className="mb-8 flex justify-between items-center">
                 <h2 className="text-2xl font-bold text-gray-800">Latest News</h2>
+                            {isAdmin &&(
                 <button
                     onClick={() => setShowAddNews(true)}
                     className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-medium rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-300 transform hover:scale-105 shadow-lg"
@@ -128,6 +134,9 @@ const News = () => {
                     </svg>
                     Add News
                 </button>
+            )
+               }
+                
             </div>
 
             {/* News Grid */}
@@ -144,6 +153,8 @@ const News = () => {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9.5a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
                     </svg>
                     <h3 className="text-xl font-medium text-gray-600 mb-2">No news yet</h3>
+                       {isAdmin &&(
+                        <div>
                     <p className="text-gray-500 mb-4">Be the first to share company updates and announcements.</p>
                     <button
                         onClick={() => setShowAddNews(true)}
@@ -154,6 +165,8 @@ const News = () => {
                         </svg>
                         Add First News
                     </button>
+                    </div>
+                       )}
                 </div>
             )}
 

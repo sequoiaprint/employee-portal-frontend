@@ -3,7 +3,7 @@ import crypto from 'crypto';
 import store from './redux/store';
 
 const API = axios.create({
-  baseURL: 'http://localhost:9000/api',
+  baseURL: 'https://internalApi.sequoia-print.com/api',
 });
 
 // Hash token function

@@ -19,7 +19,7 @@ const Resources = () => {
     : null;
 
   const localLoginUrl = cookieCredentials?.name && cookieCredentials?.password 
-    ? `https://cof.sequoia-print.com/?name=${encodeURIComponent(cookieCredentials.name)}&password=${encodeURIComponent(cookieCredentials.password)}`
+    ? `https://clientops.sequoia-print.com/?name=${encodeURIComponent(cookieCredentials.name)}&password=${encodeURIComponent(cookieCredentials.password)}`
     : null;
 
   const handleAutoLogin = () => {
@@ -81,7 +81,7 @@ const handleLocalLoginAndNavigate = () => {
         <h1 className="text-3xl font-bold text-orange-600 mb-8">Resources Center</h1>
         
         {/* Auto Login Section */}
-        <div className="bg-white rounded-lg shadow-md overflow-hidden mb-8 border border-orange-100">
+        {/* <div className="bg-white rounded-lg shadow-md overflow-hidden mb-8 border border-orange-100">
           <div className="bg-orange-600 px-4 py-3 flex items-center">
             <LogIn className="h-5 w-5 text-white mr-2" />
             <h2 className="text-lg font-semibold text-white">Application Auto Login</h2>
@@ -134,7 +134,7 @@ const handleLocalLoginAndNavigate = () => {
               <p className="text-gray-500">No login credentials available. Please log in first.</p>
             )}
           </div>
-        </div>
+        </div> */}
 
         {/* GitHub Links Section */}
         <div className="bg-white rounded-lg shadow-md overflow-hidden mb-8 border border-orange-100">

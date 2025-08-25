@@ -18,7 +18,7 @@ import {
 import ProjectList from './ProjectList';
 import ProjectForm from './ProjectForm';
 
-const ProjectComponent = () => {
+const ProjectComponent = ({onProjectsCountChange}) => {
   const dispatch = useDispatch();
   const projects = useSelector(selectAllProjects);
   const status = useSelector(selectProjectsStatus);
@@ -58,7 +58,11 @@ console.log(projects.length)
     dispatch(deleteProject(id));
   };
 
-
+  useEffect(() => {
+    if (onProjectsCountChange && projects) {
+      onProjectsCountChange(projects.length);
+    }
+  }, [projects, onProjectsCountChange]);
 
 
   return (

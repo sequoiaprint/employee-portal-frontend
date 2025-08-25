@@ -118,8 +118,8 @@ const handleSubmit = async (e) => {
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
             >
               <option value="user">User</option>
-              <option value="admin">Admin</option>
-              <option value="manager">Manager</option>
+              <option value="Admin Ops">Admin Ops</option>
+              <option value="Data Operations Analyst">Data Operations Analyst</option>
             </select>
           </div>
           

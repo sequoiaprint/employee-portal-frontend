@@ -10,7 +10,7 @@ import {
 } from '../../../redux/team/team';
 import { fetchAllProfiles } from '../../../redux/profile/profile';
 
-const TeamComponent = () => {
+const TeamComponent = ({onTeamCountChange}) => {
   const dispatch = useDispatch();
   const { teams, loading: teamsLoading, error: teamsError } = useSelector(state => state.teams);
   
@@ -106,6 +106,12 @@ const TeamComponent = () => {
       }
     }
   }, [showAddTeam, editingTeam, teams, profiles]);
+  
+  useEffect(() => {
+    if (onTeamCountChange && teams) {
+      onTeamCountChange(teams.length);
+    }
+  }, [teams, onTeamCountChange]);
 
   const getProfileInfo = (uid) => {
     const profile = profiles.find(p => p.uid === uid);
@@ -206,6 +212,7 @@ const TeamComponent = () => {
   if (profilesError) {
     return <div className="text-center py-8 text-red-500">Error loading profiles: {profilesError}</div>;
   }
+
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-orange-100 p-6">

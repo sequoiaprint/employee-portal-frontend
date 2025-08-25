@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
-import { ChevronRight, Eye } from 'lucide-react';
+import { ChevronRight, Eye, RefreshCw } from 'lucide-react';
 import Cookies from 'js-cookie';
 import Request from './Request';
 
@@ -53,6 +53,7 @@ const TodoList = ({ onRemainingChange }) => {
   const { user } = useSelector((state) => state.auth);
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [debugInfo, setDebugInfo] = useState('');
   const [activeTab, setActiveTab] = useState('general');
@@ -60,107 +61,118 @@ const TodoList = ({ onRemainingChange }) => {
   const [showRequestModal, setShowRequestModal] = useState(false);
 
   // Fetch tasks from API
-  useEffect(() => {
-    const fetchTasks = async () => {
-      try {
+  const fetchTasks = async (isRefresh = false) => {
+    try {
+      if (isRefresh) {
+        setRefreshing(true);
+      } else {
         setLoading(true);
+      }
+      setError(null);
+
+      const userUid = getUserUid();
+
+      console.log('Current user from Redux:', user);
+      console.log('User UID from cookies:', userUid);
+
+      if (!userUid) {
+        setError("User UID not found in cookies");
+        setDebugInfo("User UID is missing from cookies");
+        return;
+      }
+
+      const token = getAuthToken();
+      if (!token) {
+        setError("No authentication token found");
+        setDebugInfo("Authentication token is missing");
+        return;
+      }
+
+      const apiUrl = `https://internalApi.sequoia-print.com/api/assignment/assigned-person/${userUid}`;
+      console.log('API URL:', apiUrl);
+      setDebugInfo(`Calling API: ${apiUrl}`);
+
+      const response = await fetch(apiUrl, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      console.log('Response status:', response.status);
+
+      if (response.status === 404) {
+        // Handle 404 specifically - no assignments found
+        console.log('No assignments found for user');
+        setTasks([]);
         setError(null);
+        setDebugInfo('No assignments found for this user');
+        return;
+      }
 
-        const userUid = getUserUid();
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('API Error Response:', errorText);
+        throw new Error(`HTTP error! Status: ${response.status} - ${errorText}`);
+      }
 
-        console.log('Current user from Redux:', user);
-        console.log('User UID from cookies:', userUid);
+      const data = await response.json();
+      console.log('Raw API response:', data);
 
-        if (!userUid) {
-          setError("User UID not found in cookies");
-          setDebugInfo("User UID is missing from cookies");
-          return;
-        }
+      if (!Array.isArray(data)) {
+        console.error('Expected array but got:', typeof data, data);
+        setError("Invalid data format received from server");
+        return;
+      }
 
-        const token = getAuthToken();
-        if (!token) {
-          setError("No authentication token found");
-          setDebugInfo("Authentication token is missing");
-          return;
-        }
+      if (data.length === 0) {
+        console.log('No tasks found for user:', userUid);
+        setDebugInfo(`No tasks found for user: ${userUid}`);
+      }
 
-        const apiUrl = `http://localhost:9000/api/assignment/assigned-person/${userUid}`;
-        console.log('API URL:', apiUrl);
-        setDebugInfo(`Calling API: ${apiUrl}`);
-
-        const response = await fetch(apiUrl, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
+      // Replace the current task transformation code with this:
+      const transformedTasks = data
+        .filter(item => item.isCompleted !== 1) // Filter out completed tasks
+        .map(item => {
+          console.log('Transforming item:', item);
+          return {
+            id: item.id,
+            text: item.task,
+            done: item.isCompleted === 1,
+            startDate: item.startDate,
+            endDate: item.endDate,
+            comment: item.comment || '',
+            status: item.status || 'pending',
+            projectId: item.projectId || null,
+            projectName: item.projectName || null
+          };
         });
 
-        console.log('Response status:', response.status);
+      console.log('Transformed tasks:', transformedTasks);
+      setTasks(transformedTasks);
+      setError(null);
+      setDebugInfo(`Successfully loaded ${transformedTasks.length} tasks`);
 
-        if (response.status === 404) {
-          // Handle 404 specifically - no assignments found
-          console.log('No assignments found for user');
-          setTasks([]);
-          setError(null);
-          setDebugInfo('No assignments found for this user');
-          return;
-        }
+    } catch (err) {
+      console.error("Error fetching tasks:", err);
+      setError(`Failed to load tasks: ${err.message}`);
+      setDebugInfo(`Error: ${err.message}`);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
 
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error('API Error Response:', errorText);
-          throw new Error(`HTTP error! Status: ${response.status} - ${errorText}`);
-        }
-
-        const data = await response.json();
-        console.log('Raw API response:', data);
-
-        if (!Array.isArray(data)) {
-          console.error('Expected array but got:', typeof data, data);
-          setError("Invalid data format received from server");
-          return;
-        }
-
-        if (data.length === 0) {
-          console.log('No tasks found for user:', userUid);
-          setDebugInfo(`No tasks found for user: ${userUid}`);
-        }
-
-        // Replace the current task transformation code with this:
-        const transformedTasks = data
-          .filter(item => item.isCompleted !== 1) // Filter out completed tasks
-          .map(item => {
-            console.log('Transforming item:', item);
-            return {
-              id: item.id,
-              text: item.task,
-              done: item.isCompleted === 1,
-              startDate: item.startDate,
-              endDate: item.endDate,
-              comment: item.comment || '',
-              status: item.status || 'pending',
-              projectId: item.projectId || null,
-              projectName: item.projectName || null
-            };
-          });
-
-        console.log('Transformed tasks:', transformedTasks);
-        setTasks(transformedTasks);
-        setError(null);
-        setDebugInfo(`Successfully loaded ${transformedTasks.length} tasks`);
-
-      } catch (err) {
-        console.error("Error fetching tasks:", err);
-        setError(`Failed to load tasks: ${err.message}`);
-        setDebugInfo(`Error: ${err.message}`);
-      } finally {
-        setLoading(false);
-      }
-    };
-
+  // Initial fetch on component mount
+  useEffect(() => {
     fetchTasks();
   }, []);
+
+  // Handle refresh button click
+  const handleRefresh = () => {
+    fetchTasks(true);
+  };
 
   // Separate tasks into general and project-based
   // Replace the current task filtering lines with this:
@@ -369,7 +381,25 @@ const TodoList = ({ onRemainingChange }) => {
         <div className="p-6 border-b border-gray-200">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold text-gray-800">To Do List</h2>
-            <p className="text-sm text-gray-500">Click on any task to view details</p>
+            <div className="flex items-center space-x-3">
+              <p className="text-sm text-gray-500">Click on any task to view details</p>
+              <button
+                onClick={handleRefresh}
+                disabled={refreshing}
+                className={`flex items-center space-x-2 px-3 py-2 text-sm font-medium rounded-lg transition-all ${
+                  refreshing
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700'
+                }`}
+                title="Refresh tasks"
+              >
+                <RefreshCw 
+                  size={16} 
+                  className={refreshing ? 'animate-spin' : ''} 
+                />
+                <span>{refreshing ? 'Refreshing...' : 'Refresh'}</span>
+              </button>
+            </div>
           </div>
 
           {/* Tab Navigation */}

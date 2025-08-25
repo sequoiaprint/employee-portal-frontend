@@ -31,16 +31,20 @@ const getAuthToken = () => {
 };
 
 const handleUnauthorized = () => {
-  const cookiesToClear = ['authToken', 'adam', 'eve', 'tokenExpiration', 'userUid'];
+  const cookiesToClear = ['authToken', 'adam', 'eve', 'tokenExpiration', 'userUid','role'];
   cookiesToClear.forEach(cookie => {
     Cookies.remove(cookie, { path: '/' });
   });
-  localStorage.removeItem('authToken');
+    localStorage.removeItem('authToken');
+  localStorage.removeItem('userProfile');
+  localStorage.removeItem('profilesList');
+  localStorage.removeItem('lastSelectedProjectId');
+  localStorage.removeItem('selectedDate');
   window.location.href = '/login';
 };
 
 // API base URL
-const API_BASE_URL = 'http://localhost:9000/api/projets';
+const API_BASE_URL = 'https://internalApi.sequoia-print.com/api/projets';
 
 // Async Thunks
 export const fetchProjects = createAsyncThunk(

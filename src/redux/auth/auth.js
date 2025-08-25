@@ -2,7 +2,7 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
 import Cookies from 'js-cookie';
 
-const API_URL = 'http://localhost:9000/api/auth';
+const API_URL = 'https://internalApi.sequoia-print.com/api/auth';
 
 // XOR Encryption/Decryption functions
 const xorEncrypt = (text, secretKey = '28032002') => {
@@ -39,13 +39,15 @@ const COOKIE_CONFIG = {
 
 // Centralized logout function
 const clearAuthData = () => {
-  const cookiesToClear = ['authToken', 'adam', 'eve', 'tokenExpiration', 'userUid'];
+  const cookiesToClear = ['authToken', 'adam', 'eve', 'tokenExpiration', 'userUid','role'];
   cookiesToClear.forEach(cookie => {
     Cookies.remove(cookie, { path: '/' });
   });
   localStorage.removeItem('authToken');
   localStorage.removeItem('userProfile');
   localStorage.removeItem('profilesList');
+  localStorage.removeItem('lastSelectedProjectId');
+  localStorage.removeItem('selectedDate');
 };
 
 const authSlice = createSlice({
@@ -166,12 +168,14 @@ export const login = createAsyncThunk(
     try {
       const response = await axios.post(`${API_URL}/login`, { name, password });
       const { token, user } = response.data.data;
+     // console.log(user)
       const uid = user.uid;
-      
+      const role=user.role;
       // Store token in both cookies and localStorage
       const encryptedToken = xorEncrypt(token);
       Cookies.set('authToken', encryptedToken, COOKIE_CONFIG);
       Cookies.set('userUid', uid, COOKIE_CONFIG);
+      Cookies.set('role',role,COOKIE_CONFIG)
       localStorage.setItem('authToken', encryptedToken);
       
       storeCredentials(name, password);

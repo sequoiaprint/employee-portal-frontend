@@ -59,7 +59,7 @@ const PhotoUploader = ({ onUploadSuccess, onUploadError, children, accept = "ima
       const formData = new FormData();
       formData.append('files', file);
 
-      const response = await fetch('http://localhost:9000/api/files/upload', {
+      const response = await fetch('https://internalApi.sequoia-print.com/api/files/upload', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

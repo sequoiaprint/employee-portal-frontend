@@ -71,7 +71,7 @@ const RaiseComplaint = ({ onSubmit, onClose }) => {
         throw new Error('Authentication token not found');
       }
 
-      const response = await fetch('http://localhost:9000/api/complaint', {
+      const response = await fetch('https://internalApi.sequoia-print.com/api/complaint', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

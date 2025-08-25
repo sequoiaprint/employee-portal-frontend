@@ -222,7 +222,7 @@ const ProjectForm = ({ project, onSubmit, onCancel, operationStatus, operationEr
     setMilestoneError(null);
 
     try {
-      const response = await fetch('http://localhost:9000/api/progress', {
+      const response = await fetch('https://internalApi.sequoia-print.com/api/progress', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

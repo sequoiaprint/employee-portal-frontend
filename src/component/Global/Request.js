@@ -132,7 +132,7 @@ const Request = ({ task, onClose, onUpdate }) => {
 
       console.log('Submitting request:', updateData);
 
-      const response = await fetch(`http://localhost:9000/api/assignment/${task.id}`, {
+      const response = await fetch(`https://internalApi.sequoia-print.com/api/assignment/${task.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

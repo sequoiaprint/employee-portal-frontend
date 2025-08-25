@@ -172,7 +172,7 @@ const AddEditNews = ({
       if (isEditMode) {
         // Update existing news
         response = await axios.put(
-          `http://localhost:9000/api/news/${editingNews.id}`,
+          `https://internalApi.sequoia-print.com/api/news/${editingNews.id}`,
           newsData,
           {
             headers: { Authorization: `Bearer ${token}` },
@@ -181,7 +181,7 @@ const AddEditNews = ({
       } else {
         // Create new news
         response = await axios.post(
-          'http://localhost:9000/api/news',
+          'https://internalApi.sequoia-print.com/api/news',
           newsData,
           {
             headers: { Authorization: `Bearer ${token}` },

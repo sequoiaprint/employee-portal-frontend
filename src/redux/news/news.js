@@ -36,11 +36,15 @@ const getAuthToken = () => {
 
 const handleUnauthorized = () => {
   // Clear all auth data
-  const cookiesToClear = ['authToken', 'adam', 'eve', 'tokenExpiration', 'userUid'];
+  const cookiesToClear = ['authToken', 'adam', 'eve', 'tokenExpiration', 'userUid','role'];
   cookiesToClear.forEach(cookie => {
     Cookies.remove(cookie, { path: '/' });
   });
   localStorage.removeItem('authToken');
+  localStorage.removeItem('userProfile');
+  localStorage.removeItem('profilesList');
+  localStorage.removeItem('lastSelectedProjectId');
+  localStorage.removeItem('selectedDate');
   window.location.href = '/login';
 };
 
@@ -55,7 +59,7 @@ export const fetchNews = createAsyncThunk(
         return rejectWithValue('No auth token');
       }
 
-      const response = await axios.get('http://localhost:9000/api/news', {
+      const response = await axios.get('https://internalApi.sequoia-print.com/api/news', {
         headers: { Authorization: `Bearer ${token}` },
         timeout: 15000
       });
@@ -81,7 +85,7 @@ export const addNews = createAsyncThunk(
       }
 
       const response = await axios.post(
-        'http://localhost:9000/api/news',
+        'https://internalApi.sequoia-print.com/api/news',
         newsData,
         {
           headers: { Authorization: `Bearer ${token}` },
@@ -111,7 +115,7 @@ export const deleteNews = createAsyncThunk(
       }
 
       await axios.delete(
-        `http://localhost:9000/api/news/${newsId}`,
+        `https://internalApi.sequoia-print.com/api/news/${newsId}`,
         {
           headers: { Authorization: `Bearer ${token}` },
           timeout: 15000
@@ -140,7 +144,7 @@ export const updateNews = createAsyncThunk(
       }
 
       const response = await axios.put(
-        `http://localhost:9000/api/news/${id}`,
+        `https://internalApi.sequoia-print.com/api/news/${id}`,
         newsData,
         {
           headers: { Authorization: `Bearer ${token}` },

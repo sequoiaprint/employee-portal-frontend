@@ -27,7 +27,7 @@ const Assignment = () => {
   }, []);
 
   useEffect(() => {
-    console.log('Fetching assignments, refresh counter:', refreshCounter);
+   // console.log('Fetching assignments, refresh counter:', refreshCounter);
     dispatch(fetchAssignments());
   }, [dispatch, refreshCounter]);
 
@@ -86,7 +86,7 @@ const Assignment = () => {
 
   // Memoize filtered tasks to prevent unnecessary recalculations
   const tasks = useMemo(() => {
-    console.log('Recalculating tasks from assignments:', assignments);
+   // console.log('Recalculating tasks from assignments:', assignments);
     return assignments
       .map(assignment => ({
         id: assignment.id,
@@ -245,7 +245,7 @@ const Assignment = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-3 gap-6 mb-8 ">
           {/* Make each stat card clickable */}
           <div 
             className="bg-white rounded-lg border border-gray-200 p-6 cursor-pointer hover:bg-gray-50 transition-colors"
@@ -292,7 +292,7 @@ const Assignment = () => {
             </div>
           </div>
 
-          <div 
+          {/* <div 
             className="bg-white rounded-lg border border-gray-200 p-6 cursor-pointer hover:bg-gray-50 transition-colors"
             onClick={() => handleViewTasksByStatus('overdue')}
           >
@@ -305,7 +305,7 @@ const Assignment = () => {
                 <AlertTriangle className="w-8 h-8" />
               </div>
             </div>
-          </div>
+          </div> */}
         </div>
 
         <div className="flex gap-6 h-[calc(100vh-400px)]">

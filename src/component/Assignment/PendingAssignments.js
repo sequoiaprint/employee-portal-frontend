@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { X, Clock, User, Calendar, FileText, CheckCircle, AlertCircle } from 'lucide-react';
 import Cookies from 'js-cookie';
@@ -39,6 +38,16 @@ const PendingAssignments = ({ isOpen, onClose, pendingTasks, onTaskCompleted }) 
   const [confirmationText, setConfirmationText] = useState('');
   const [error, setError] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+//console.log(pendingTasks)
+
+  const CurrentUid = Cookies.get('userUid');
+  const role = Cookies.get('role');
+//  console.log(CurrentUid,role)
+  const isAdmin = role === "Admin Ops";
+
+  // Remove the canEdit check from here since it needs to be per task
+  // const canEdit = isAdmin || CurrentUid === pendingTasks.assignee;
+  // console.log(canEdit)
 
   const fetchProfile = async (uid) => {
     try {
@@ -47,7 +56,7 @@ const PendingAssignments = ({ isOpen, onClose, pendingTasks, onTaskCompleted }) 
         return;
       }
 
-      const response = await fetch(`http://localhost:9000/api/profiles/${uid}`, {
+      const response = await fetch(`https://internalApi.sequoia-print.com/api/profiles/${uid}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -127,7 +136,7 @@ const PendingAssignments = ({ isOpen, onClose, pendingTasks, onTaskCompleted }) 
         isCompleted:1
       };
 
-      const response = await fetch(`http://localhost:9000/api/assignment/${taskId}`, {
+      const response = await fetch(`https://internalApi.sequoia-print.com/api/assignment/${taskId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -191,79 +200,85 @@ const PendingAssignments = ({ isOpen, onClose, pendingTasks, onTaskCompleted }) 
           </div>
         ) : (
           <div className="space-y-4">
-            {pendingTasks.map(task => (
-              <div key={task.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
-                <div className="flex justify-between items-start mb-2">
-                  <h3 className="font-semibold text-gray-900">{task.title}</h3>
-                  {completingTaskId !== task.id && (
-                    <button
-                      onClick={() => handleStartCompletion(task.id)}
-                      className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded-md text-sm flex items-center gap-1"
-                    >
-                      <CheckCircle className="w-4 h-4" />
-                      Mark as Completed
-                    </button>
-                  )}
-                </div>
-                
-                {completingTaskId === task.id && (
-                  <div className="mb-3 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
-                    <p className="text-sm text-yellow-800 mb-2">
-                      Are you sure you want to mark this task as completed? Type "confirm" to proceed.
-                    </p>
-                    <div className="flex gap-2 mb-2">
-                      <input
-                        type="text"
-                        value={confirmationText}
-                        onChange={(e) => setConfirmationText(e.target.value)}
-                        placeholder="Type 'confirm'"
-                        className="flex-1 px-3 py-1 border border-gray-300 rounded-md text-sm"
-                        disabled={isProcessing}
-                      />
+            {pendingTasks.map(task => {
+              // Check canEdit for each individual task
+              const canEdit = isAdmin || CurrentUid === task.assignee;
+              console.log(`Task ${task.id}: canEdit = ${canEdit}, CurrentUid = ${CurrentUid}, task.assignee = ${task.assignee}`);
+              
+              return (
+                <div key={task.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
+                  <div className="flex justify-between items-start mb-2">
+                    <h3 className="font-semibold text-gray-900">{task.title}</h3>
+                    {(completingTaskId !== task.id && canEdit) && (
                       <button
-                        onClick={() => handleMarkAsCompleted(task.id)}
-                        disabled={isProcessing}
-                        className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded-md text-sm flex items-center gap-1 disabled:opacity-50"
+                        onClick={() => handleStartCompletion(task.id)}
+                        className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded-md text-sm flex items-center gap-1"
                       >
-                        {isProcessing ? 'Processing...' : 'Confirm'}
+                        <CheckCircle className="w-4 h-4" />
+                        Mark as Completed
                       </button>
-                      <button
-                        onClick={handleCancelCompletion}
-                        disabled={isProcessing}
-                        className="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded-md text-sm disabled:opacity-50"
-                      >
-                        Cancel
-                      </button>
+                    )}
+                  </div>
+                  
+                  {completingTaskId === task.id && (
+                    <div className="mb-3 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                      <p className="text-sm text-yellow-800 mb-2">
+                        Are you sure you want to mark this task as completed? Type "confirm" to proceed.
+                      </p>
+                      <div className="flex gap-2 mb-2">
+                        <input
+                          type="text"
+                          value={confirmationText}
+                          onChange={(e) => setConfirmationText(e.target.value)}
+                          placeholder="Type 'confirm'"
+                          className="flex-1 px-3 py-1 border border-gray-300 rounded-md text-sm"
+                          disabled={isProcessing}
+                        />
+                        <button
+                          onClick={() => handleMarkAsCompleted(task.id)}
+                          disabled={isProcessing}
+                          className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded-md text-sm flex items-center gap-1 disabled:opacity-50"
+                        >
+                          {isProcessing ? 'Processing...' : 'Confirm'}
+                        </button>
+                        <button
+                          onClick={handleCancelCompletion}
+                          disabled={isProcessing}
+                          className="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded-md text-sm disabled:opacity-50"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                      {error && (
+                        <div className="flex items-center gap-1 text-red-600 text-sm">
+                          <AlertCircle className="w-4 h-4" />
+                          {error}
+                        </div>
+                      )}
                     </div>
-                    {error && (
-                      <div className="flex items-center gap-1 text-red-600 text-sm">
-                        <AlertCircle className="w-4 h-4" />
-                        {error}
+                  )}
+                  
+                  <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
+                    <div className="flex items-center">
+                      <User className="w-4 h-4 mr-2" />
+                      <span>{getAssigneeName(task.assignee)}</span>
+                    </div>
+                    
+                    <div className="flex items-center">
+                      <Calendar className="w-4 h-4 mr-2" />
+                      <span>Due: {task.dueDate.toLocaleDateString()}</span>
+                    </div>
+                    
+                    {task.comment && (
+                      <div className="col-span-2 flex items-start">
+                        <FileText className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0" />
+                        <span className="break-words">{task.comment}</span>
                       </div>
                     )}
                   </div>
-                )}
-                
-                <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
-                  <div className="flex items-center">
-                    <User className="w-4 h-4 mr-2" />
-                    <span>{getAssigneeName(task.assignee)}</span>
-                  </div>
-                  
-                  <div className="flex items-center">
-                    <Calendar className="w-4 h-4 mr-2" />
-                    <span>Due: {task.dueDate.toLocaleDateString()}</span>
-                  </div>
-                  
-                  {task.comment && (
-                    <div className="col-span-2 flex items-start">
-                      <FileText className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0" />
-                      <span className="break-words">{task.comment}</span>
-                    </div>
-                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

@@ -74,7 +74,11 @@ const handleAuthError = (error, rejectWithValue) => {
       cookiesToClear.forEach(cookie => {
         Cookies.remove(cookie, { path: '/' });
       });
-      localStorage.removeItem('authToken');
+  localStorage.removeItem('authToken');
+  localStorage.removeItem('userProfile');
+  localStorage.removeItem('profilesList');
+  localStorage.removeItem('lastSelectedProjectId');
+  localStorage.removeItem('selectedDate');
 
       // Redirect to login
       setTimeout(() => {
@@ -133,7 +137,7 @@ export const fetchAllProfiles = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const config = createAuthConfig();
-      const response = await axios.get('http://localhost:9000/api/profiles', config);
+      const response = await axios.get('https://internalApi.sequoia-print.com/api/profiles', config);
 
       // Save to localStorage
       saveProfilesListToStorage(response.data?.data || response.data || []);
@@ -162,9 +166,9 @@ export const fetchProfile = createAsyncThunk(
 
       //console.log('Fetching profile for UID:', uid);
       const config = createAuthConfig();
-      const response = await axios.get(`http://localhost:9000/api/profiles/${uid}`, config);
+      const response = await axios.get(`https://internalApi.sequoia-print.com/api/profiles/${uid}`, config);
 
-      console.log('Profile API response:', response.data);
+     // console.log('Profile API response:', response.data);
 
       // Handle different response structures
       let profileData;
@@ -185,7 +189,7 @@ export const fetchProfile = createAsyncThunk(
         profileData.uid = uid;
       }
 
-      console.log('Processed profile data:', profileData);
+    //  console.log('Processed profile data:', profileData);
       saveProfileToStorage(profileData);
       return profileData;
     } catch (error) {
@@ -214,7 +218,7 @@ export const updateProfile = createAsyncThunk(
 
       const config = createAuthConfig();
       const response = await axios.put(
-        `http://localhost:9000/api/profiles/${uid}`,
+        `https://internalApi.sequoia-print.com/api/profiles/${uid}`,
         profileData,
         config
       );
@@ -248,7 +252,7 @@ export const createProfile = createAsyncThunk(
 
       const config = createAuthConfig();
       const response = await axios.post(
-        'http://localhost:9000/api/auth/signup',
+        'https://internalApi.sequoia-print.com/api/auth/signup',
         profileData,
         config
       );
@@ -277,7 +281,7 @@ export const createWorkSchedule = createAsyncThunk(
     try {
       const config = createAuthConfig();
       const response = await axios.post(
-        `http://localhost:9000/api/profiles/work-schedule/${employeeId}`,
+        `https://internalApi.sequoia-print.com/api/profiles/work-schedule/${employeeId}`,
         scheduleData,
         config
       );
@@ -294,7 +298,7 @@ export const updateWorkSchedule = createAsyncThunk(
     try {
       const config = createAuthConfig();
       const response = await axios.put(
-        `http://localhost:9000/api/profiles/${employeeId}/work-schedule/${scheduleId}`,
+        `https://internalApi.sequoia-print.com/api/profiles/${employeeId}/work-schedule/${scheduleId}`,
         scheduleData,
         config
       );
@@ -311,7 +315,7 @@ export const deleteWorkSchedule = createAsyncThunk(
     try {
       const config = createAuthConfig();
       const response = await axios.delete(
-        `http://localhost:9000/api/profiles/${employeeId}/work-schedule/${scheduleId}`,
+        `https://internalApi.sequoia-print.com/api/profiles/${employeeId}/work-schedule/${scheduleId}`,
         config
       );
       return { employeeId, scheduleId, data: response.data };
@@ -331,7 +335,7 @@ export const deleteProfile = createAsyncThunk(
 
       const config = createAuthConfig();
       const response = await axios.delete(
-        `http://localhost:9000/api/auth/${uid}`,
+        `https://internalApi.sequoia-print.com/api/auth/${uid}`,
         config
       );
 

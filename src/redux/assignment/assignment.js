@@ -45,7 +45,7 @@ const handleUnauthorized = () => {
 };
 
 // API base URL
-const API_BASE_URL = 'http://localhost:9000/api/assignment';
+const API_BASE_URL = 'https://internalApi.sequoia-print.com/api/assignment';
 
 // Create axios instance with default config (no timeout)
 const axiosInstance = axios.create({
@@ -162,7 +162,7 @@ export const updateAssignment = createAsyncThunk(
         return rejectWithValue('Unauthorized');
       }
 
-      const response = await fetch(`http://localhost:9000/api/assignment/${id}`, {
+      const response = await fetch(`https://internalApi.sequoia-print.com/api/assignment/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

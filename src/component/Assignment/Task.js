@@ -41,6 +41,9 @@ const Task = ({ tasks, selectedDate, onTaskDeleted, onTaskUpdated }) => {
   const [selectedTask, setSelectedTask] = useState(null);
   const [isDeleting, setIsDeleting] = useState(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const CurrentUid = Cookies.get('userUid');
+  const role = Cookies.get('role');
+  const isAdmin = role === "Admin Ops";
 
   const handleRefresh = useCallback(() => {
     console.log("called")
@@ -50,13 +53,13 @@ const Task = ({ tasks, selectedDate, onTaskDeleted, onTaskUpdated }) => {
 
   const handleTaskUpdatedLocal = useCallback((shouldRefresh = false) => {
     console.log('handleTaskUpdatedLocal called with shouldRefresh:', shouldRefresh);
-    
+
     if (shouldRefresh) {
       console.log('Refreshing tasks from callback...');
       handleRefresh()
       // Trigger a refresh by incrementing the refresh trigger
       setRefreshTrigger(prev => prev + 1);
-      
+
       // Also call parent callback if needed
       if (onTaskUpdated) {
         onTaskUpdated();
@@ -82,7 +85,7 @@ const Task = ({ tasks, selectedDate, onTaskDeleted, onTaskUpdated }) => {
         return;
       }
 
-      const response = await fetch(`http://localhost:9000/api/profiles/${uid}`, {
+      const response = await fetch(`https://internalApi.sequoia-print.com/api/profiles/${uid}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -103,7 +106,7 @@ const Task = ({ tasks, selectedDate, onTaskDeleted, onTaskUpdated }) => {
   useEffect(() => {
     const fetchAllProfiles = async () => {
       if (!tasks || tasks.length === 0) return;
-      
+
       // Get unique assignee IDs from all tasks
       const uniqueAssigneeIds = [...new Set(tasks.map(task => task.assignee).filter(Boolean))];
 
@@ -242,80 +245,85 @@ const Task = ({ tasks, selectedDate, onTaskDeleted, onTaskUpdated }) => {
       ) : (
         <div className="flex-1 overflow-y-auto">
           <div className="space-y-4">
-            {tasksForSelectedDate.map(task => (
-              <div
-                key={task.id}
-                className={`border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow ${
-                  isDeleting === task.id ? 'opacity-50 pointer-events-none' : ''
-                }`}
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <h3 className="font-medium text-gray-900 flex-1 pr-4">{task.title}</h3>
-                  <div className='flex flex-row gap-3'>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${getStatusBadge(task.status)}`}>
-                      {getStatusText(task.status)}
-                    </span>
-                    <button
-                      onClick={() => handleDeleteTask(task.id)}
-                      disabled={isDeleting === task.id}
-                      className={`text-red-500 hover:text-red-700 transition-colors ${
-                        isDeleting === task.id ? 'cursor-not-allowed opacity-50' : ''
-                      }`}
-                      title="Delete task"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-4 text-sm text-gray-600 mb-3 flex-wrap">
-                  <div className="flex items-center gap-1">
-                    <User size={14} className="text-gray-400" />
-                    <span>{getAssigneeName(task.assignee)}</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    {getStatusIcon(task.status)}
-                    <span>Due {task.dueDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
-                  </div>
-                  {task.comment && (
-                    <div className="flex items-center gap-1">
-                      <MessageCircle size={14} className="text-gray-400" />
-                      <span>Comment</span>
-                    </div>
-                  )}
-                  {task.urls && (
-                    <div className="flex items-center gap-1">
-                      <Link size={14} className="text-gray-400" />
-                      <span>Attachment</span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="text-sm text-gray-600 mb-3">
-                  {task.comment && (
-                    <p className="italic">"{task.comment}"</p>
-                  )}
-                </div>
-
-                {task.urls && (
-                  <a
-                    href={task.urls}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-blue-600 hover:text-blue-700 font-medium hover:underline transition-colors block mb-2"
-                  >
-                    View Attachment
-                  </a>
-                )}
-
-                <button
-                  onClick={() => setSelectedTask(task)}
-                  className="text-sm text-blue-600 hover:text-blue-700 font-medium hover:underline transition-colors"
+            {tasksForSelectedDate.map(task => {
+              const canEdit = isAdmin || CurrentUid === task.assignee;
+              
+              return (
+                <div
+                  key={task.id}
+                  className={`border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow ${isDeleting === task.id ? 'opacity-50 pointer-events-none' : ''
+                    }`}
                 >
-                  View Details
-                </button>
-              </div>
-            ))}
+                  <div className="flex items-start justify-between mb-3">
+                    <h3 className="font-medium text-gray-900 flex-1 pr-4">{task.title}</h3>
+                    <div className='flex flex-row gap-3'>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${getStatusBadge(task.status)}`}>
+                        {getStatusText(task.status)}
+                      </span>
+                      {canEdit && (
+                        <button
+                          onClick={() => handleDeleteTask(task.id)}
+                          disabled={isDeleting === task.id}
+                          className={`text-red-500 hover:text-red-700 transition-colors ${isDeleting === task.id ? 'cursor-not-allowed opacity-50' : ''
+                            }`}
+                          title="Delete task"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      )}
+
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-4 text-sm text-gray-600 mb-3 flex-wrap">
+                    <div className="flex items-center gap-1">
+                      <User size={14} className="text-gray-400" />
+                      <span>{getAssigneeName(task.assignee)}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {getStatusIcon(task.status)}
+                      <span>Due {task.dueDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                    </div>
+                    {task.comment && (
+                      <div className="flex items-center gap-1">
+                        <MessageCircle size={14} className="text-gray-400" />
+                        <span>Comment</span>
+                      </div>
+                    )}
+                    {task.urls && (
+                      <div className="flex items-center gap-1">
+                        <Link size={14} className="text-gray-400" />
+                        <span>Attachment</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="text-sm text-gray-600 mb-3">
+                    {task.comment && (
+                      <p className="italic">"{task.comment}"</p>
+                    )}
+                  </div>
+
+                  {task.urls && (
+                    <a
+                      href={task.urls}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-blue-600 hover:text-blue-700 font-medium hover:underline transition-colors block mb-2"
+                    >
+                      View Attachment
+                    </a>
+                  )}
+
+                  <button
+                    onClick={() => setSelectedTask(task)}
+                    className="text-sm text-blue-600 hover:text-blue-700 font-medium hover:underline transition-colors"
+                  >
+                    View Details
+                  </button>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
