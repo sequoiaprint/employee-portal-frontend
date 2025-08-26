@@ -3,6 +3,7 @@ import { useSelector } from "react-redux";
 import { ChevronRight, Eye, RefreshCw } from 'lucide-react';
 import Cookies from 'js-cookie';
 import Request from './Request';
+import HtmlContentDisplay, { getPlainTextFromHtml, isHtmlContentEmpty } from '../Global/HtmlContentDisplay';
 
 const xorDecrypt = (encrypted, secretKey = '28032002') => {
   try {
@@ -49,7 +50,7 @@ const getUserUid = () => {
   return userUid;
 };
 
-const TodoList = ({ onRemainingChange }) => {
+const TodoList = ({ onRemainingChange, onClose }) => {
   const { user } = useSelector((state) => state.auth);
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -131,7 +132,7 @@ const TodoList = ({ onRemainingChange }) => {
         setDebugInfo(`No tasks found for user: ${userUid}`);
       }
 
-      // Replace the current task transformation code with this:
+      // Transform tasks and filter out completed ones
       const transformedTasks = data
         .filter(item => item.isCompleted !== 1) // Filter out completed tasks
         .map(item => {
@@ -174,19 +175,65 @@ const TodoList = ({ onRemainingChange }) => {
     fetchTasks(true);
   };
 
+  const truncateHtmlContent = (html, wordLimit = 25) => {
+    if (!html) return '';
+    
+    // Get plain text to count words
+    const plainText = getPlainTextFromHtml(html);
+    const words = plainText.split(' ');
+    
+    if (words.length <= wordLimit) return html;
+    
+    // Create a temporary element to parse HTML
+    const tempElement = document.createElement('div');
+    tempElement.innerHTML = html;
+    
+    // Function to recursively truncate text content
+    const truncateNode = (node, remainingWords) => {
+      if (remainingWords <= 0) return 0;
+      
+      if (node.nodeType === Node.TEXT_NODE) {
+        const text = node.textContent;
+        const words = text.split(' ');
+        
+        if (words.length <= remainingWords) {
+          return remainingWords - words.length;
+        } else {
+          node.textContent = words.slice(0, remainingWords).join(' ') + '...';
+          return 0;
+        }
+      }
+      
+      if (node.nodeType === Node.ELEMENT_NODE) {
+        for (let i = 0; i < node.childNodes.length && remainingWords > 0; i++) {
+          remainingWords = truncateNode(node.childNodes[i], remainingWords);
+        }
+      }
+      
+      return remainingWords;
+    };
+    
+    // Truncate the content
+    truncateNode(tempElement, wordLimit);
+    
+    return tempElement.innerHTML;
+  };
+
   // Separate tasks into general and project-based
-  // Replace the current task filtering lines with this:
   const generalTasks = tasks.filter(task => !task.projectId || task.projectId === "general");
   const projectTasks = tasks.filter(task => task.projectId && task.projectId !== "general");
 
   // Update remaining count when tasks change
   useEffect(() => {
     const remaining = tasks.filter((t) => !t.done).length;
-    onRemainingChange(remaining);
+    if (onRemainingChange) {
+      onRemainingChange(remaining);
+    }
   }, [tasks, onRemainingChange]);
 
   // Handle task click to open request modal
-  const handleTaskClick = (task) => {
+  const handleTaskClick = (task, event) => {
+    event.stopPropagation(); // Prevent event bubbling
     setSelectedTask(task);
     setShowRequestModal(true);
   };
@@ -238,7 +285,7 @@ const TodoList = ({ onRemainingChange }) => {
     return (
       <li
         key={task.id}
-        onClick={() => handleTaskClick(task)}
+        onClick={(e) => handleTaskClick(task, e)}
         className="p-4 bg-gray-50 rounded-lg hover:bg-gray-100 hover:shadow-md transition-all cursor-pointer border border-gray-200 group"
       >
         <div className="flex items-start justify-between">
@@ -249,7 +296,10 @@ const TodoList = ({ onRemainingChange }) => {
                   className={`text-sm font-medium ${task.done ? "line-through text-gray-400" : "text-gray-800"
                     }`}
                 >
-                  {task.text}
+                  <HtmlContentDisplay 
+                    content={truncateHtmlContent(task.text)} 
+                    className="task-title-preview"
+                  />
                 </span>
                 {task.status && task.status !== 'pending' && (
                   <span className={`ml-2 px-2 py-1 text-xs rounded-full ${task.status === 'urgent'
@@ -333,10 +383,43 @@ const TodoList = ({ onRemainingChange }) => {
     </div>
   );
 
+  // Handle tab clicks
+  const handleTabClick = (tab, event) => {
+    event.stopPropagation(); // Prevent event bubbling
+    setActiveTab(tab);
+  };
+
+  // Handle refresh click
+  const handleRefreshClick = (event) => {
+    event.stopPropagation(); // Prevent event bubbling
+    handleRefresh();
+  };
+
+  // Handle close button click
+  const handleCloseClick = (event) => {
+    event.stopPropagation(); // Prevent event bubbling
+    if (onClose) {
+      onClose();
+    }
+  };
+
   if (loading) {
     return (
-      <div className="w-[700px] bg-white rounded-xl shadow-lg border border-gray-200 p-6">
-        <h2 className="text-xl font-semibold text-gray-800 mb-4">To Do List</h2>
+      <div className="todolist-container w-[700px] bg-white rounded-xl shadow-lg border border-gray-200 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-semibold text-gray-800">To Do List</h2>
+          {onClose && (
+            <button
+              onClick={handleCloseClick}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+              title="Close"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+            </button>
+          )}
+        </div>
         <div className="flex flex-col justify-center items-center h-60">
           <div className="animate-spin rounded-full h-12 w-12 border-b-3 border-blue-500 mb-3"></div>
           <p className="text-base text-gray-500">Loading tasks...</p>
@@ -351,8 +434,21 @@ const TodoList = ({ onRemainingChange }) => {
   // Don't show error for 404 - just show empty state
   if (error && !debugInfo.includes('No assignments found for this user')) {
     return (
-      <div className="w-[700px] bg-white rounded-xl shadow-lg border border-gray-200 p-6">
-        <h2 className="text-xl font-semibold text-gray-800 mb-4">To Do List</h2>
+      <div className="todolist-container w-[700px] bg-white rounded-xl shadow-lg border border-gray-200 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-semibold text-gray-800">To Do List</h2>
+          {onClose && (
+            <button
+              onClick={handleCloseClick}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+              title="Close"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+            </button>
+          )}
+        </div>
         <div className="text-center py-12 text-red-500">
           <div className="text-red-400 mb-4">
             <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -376,7 +472,7 @@ const TodoList = ({ onRemainingChange }) => {
 
   return (
     <>
-      <div className="w-[700px] bg-white rounded-xl shadow-lg border border-gray-200 max-h-[700px] flex flex-col">
+      <div className="todolist-container w-[700px] bg-white rounded-xl shadow-lg border border-gray-200 max-h-[700px] flex flex-col">
         {/* Header */}
         <div className="p-6 border-b border-gray-200">
           <div className="flex items-center justify-between mb-4">
@@ -384,7 +480,7 @@ const TodoList = ({ onRemainingChange }) => {
             <div className="flex items-center space-x-3">
               <p className="text-sm text-gray-500">Click on any task to view details</p>
               <button
-                onClick={handleRefresh}
+                onClick={handleRefreshClick}
                 disabled={refreshing}
                 className={`flex items-center space-x-2 px-3 py-2 text-sm font-medium rounded-lg transition-all ${
                   refreshing
@@ -399,13 +495,24 @@ const TodoList = ({ onRemainingChange }) => {
                 />
                 <span>{refreshing ? 'Refreshing...' : 'Refresh'}</span>
               </button>
+              {onClose && (
+                <button
+                  onClick={handleCloseClick}
+                  className="text-gray-400 hover:text-gray-600 transition-colors p-1"
+                  title="Close"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+                  </svg>
+                </button>
+              )}
             </div>
           </div>
 
           {/* Tab Navigation */}
           <div className="flex space-x-1 bg-gray-100 rounded-lg p-1">
             <button
-              onClick={() => setActiveTab('general')}
+              onClick={(e) => handleTabClick('general', e)}
               className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${activeTab === 'general'
                   ? 'bg-white text-blue-600 shadow-sm'
                   : 'text-gray-500 hover:text-gray-700'
@@ -419,7 +526,7 @@ const TodoList = ({ onRemainingChange }) => {
               )}
             </button>
             <button
-              onClick={() => setActiveTab('project')}
+              onClick={(e) => handleTabClick('project', e)}
               className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${activeTab === 'project'
                   ? 'bg-white text-blue-600 shadow-sm'
                   : 'text-gray-500 hover:text-gray-700'

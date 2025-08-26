@@ -137,7 +137,9 @@ if (currentProfile) {
       {/* Grid for the four content cards */}
       <main className="grid grid-cols-1 md:grid-cols-4 gap-6">
         {/* News & Updates */}
-        <section className="bg-white rounded-xl shadow-lg p-6 space-y-4 border border-gray-100 transition-all duration-300 hover:border-orange-100 hover:shadow-xl hover:-translate-y-1">
+        <section
+         onClick={handleViewMoreNews}
+         className="bg-white rounded-xl shadow-lg p-6 space-y-4 border border-gray-100 transition-all duration-300 hover:border-orange-100 hover:shadow-xl hover:-translate-y-1">
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-3">
               <span className="inline-block p-2 rounded-full bg-orange-100 shadow-sm transition-all duration-300 hover:bg-orange-200">
@@ -164,9 +166,9 @@ if (currentProfile) {
                 <p className="text-gray-500 text-sm">Latest company announcements</p>
               </div>
             </div>
-            <span className="bg-pink-100 text-pink-700 px-3 py-0.5 text-xs font-semibold rounded-full shadow-sm transition-all duration-300 hover:scale-105">
+            {/* <span className="bg-pink-100 text-pink-700 px-3 py-0.5 text-xs font-semibold rounded-full shadow-sm transition-all duration-300 hover:scale-105">
               {displayNews.length} {displayNews.length === 1 ? 'News' : 'News'}
-            </span>
+            </span> */}
           </div>
 
           {/* Cover Image */}
@@ -218,8 +220,8 @@ if (currentProfile) {
             </div>
           )}
 
-          <button
-            onClick={handleViewMoreNews}
+          {/* <button
+           
             aria-label="View News & Updates details"
             className="text-orange-500 font-semibold hover:text-orange-700 flex items-center gap-1 text-sm mt-3 transition-all duration-300 hover:translate-x-1"
           >
@@ -235,11 +237,13 @@ if (currentProfile) {
             >
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"></path>
             </svg>
-          </button>
+          </button> */}
         </section>
 
         {/* Insights & Trends */}
-        <section className="bg-white rounded-xl shadow-lg p-6 space-y-4 border border-gray-100 transition-all duration-300 hover:border-blue-100 hover:shadow-xl hover:-translate-y-1">
+        <section
+        onClick={handleViewMoreInsights}
+         className="bg-white  rounded-xl shadow-lg p-6 space-y-4 border border-gray-100 transition-all duration-300 hover:border-blue-100 hover:shadow-xl hover:-translate-y-1">
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-3">
               <span className="inline-block p-2 rounded-full bg-blue-100 shadow-sm transition-all duration-300 hover:bg-blue-200">
@@ -266,9 +270,9 @@ if (currentProfile) {
                 <p className="text-gray-500 text-sm">Industry knowledge and analysis</p>
               </div>
             </div>
-            <span className="bg-blue-100 text-blue-700 px-3 py-0.5 text-xs font-semibold rounded-full shadow-sm transition-all duration-300 hover:scale-105">
+            {/* <span className="bg-blue-100 text-blue-700 px-3 py-0.5 text-xs font-semibold rounded-full shadow-sm transition-all duration-300 hover:scale-105">
               {displayInsights.length} {displayInsights.length === 1 ? 'Insight' : 'Insights'}
-            </span>
+            </span> */}
           </div>
 
           {/* Cover Image */}
@@ -329,8 +333,8 @@ if (currentProfile) {
             </div>
           )}
 
-          <button
-            onClick={handleViewMoreInsights}
+          {/* <button
+            
             aria-label="View Insights & Trends details"
             className="text-blue-600 font-semibold hover:text-blue-800 flex items-center gap-1 text-sm mt-3 transition-all duration-300 hover:translate-x-1"
           >
@@ -346,11 +350,13 @@ if (currentProfile) {
             >
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"></path>
             </svg>
-          </button>
+          </button> */}
         </section>
 
         {/* Client Portfolio */}
-        <section className="bg-white rounded-xl shadow-lg p-6 space-y-4 border border-gray-100 transition-all duration-300 hover:border-purple-100 hover:shadow-xl hover:-translate-y-1">
+        <section 
+         onClick={handleViewMoreClients}
+        className="bg-white rounded-xl shadow-lg p-6 space-y-4 border border-gray-100 transition-all duration-300 hover:border-purple-100 hover:shadow-xl hover:-translate-y-1">
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-3">
               <span className="inline-block p-2 rounded-full bg-purple-100 shadow-sm transition-all duration-300 hover:bg-purple-200">
@@ -377,9 +383,9 @@ if (currentProfile) {
                 <p className="text-gray-500 text-sm">Our valued clients and partners</p>
               </div>
             </div>
-            <span className="bg-green-100 text-green-700 px-3 py-0.5 text-xs font-semibold rounded-full shadow-sm transition-all duration-300 hover:scale-105">
+            {/* <span className="bg-green-100 text-green-700 px-3 py-0.5 text-xs font-semibold rounded-full shadow-sm transition-all duration-300 hover:scale-105">
               {clients?.length || 0} Clients
-            </span>
+            </span> */}
           </div>
 
           {/* Client Images Grid */}
@@ -448,8 +454,8 @@ if (currentProfile) {
             </div>
           )}
 
-          <button
-            onClick={handleViewMoreClients}
+          {/* <button
+           
             aria-label="View Client Portfolio details"
             className="text-purple-600 font-semibold hover:text-purple-800 flex items-center gap-1 text-sm mt-3 transition-all duration-300 hover:translate-x-1"
           >
@@ -465,11 +471,13 @@ if (currentProfile) {
             >
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"></path>
             </svg>
-          </button>
+          </button> */}
         </section>
 
         {/* HR Hub */}
-        <section className="bg-white rounded-xl shadow-lg p-6 space-y-4 border border-gray-100 transition-all duration-300 hover:border-green-100 hover:shadow-xl hover:-translate-y-1">
+        <section 
+        onClick={handleViewMoreHr}
+        className="bg-white rounded-xl shadow-lg p-6 space-y-4 border border-gray-100 transition-all duration-300 hover:border-green-100 hover:shadow-xl hover:-translate-y-1">
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-3">
               <span className="inline-block p-2 rounded-full bg-green-100 shadow-sm transition-all duration-300 hover:bg-green-200">
@@ -494,9 +502,9 @@ if (currentProfile) {
                 <p className="text-gray-500 text-sm">Employee resources and policies</p>
               </div>
             </div>
-            <span className="bg-blue-100 text-blue-700 px-3 py-0.5 text-xs font-semibold rounded-full shadow-sm transition-all duration-300 hover:scale-105">
+            {/* <span className="bg-blue-100 text-blue-700 px-3 py-0.5 text-xs font-semibold rounded-full shadow-sm transition-all duration-300 hover:scale-105">
               Employee Access
-            </span>
+            </span> */}
           </div>
 
           <div className="aspect-[16/7] w-full overflow-hidden rounded-lg shadow-sm mb-3 border border-gray-200 transition-all duration-500 hover:shadow-md">
@@ -517,9 +525,9 @@ if (currentProfile) {
             </button>
           </div>
 
-          <button
+          {/* <button
             aria-label="View HR Hub details"
-            onClick={handleViewMoreHr}
+            
             className="text-green-700 font-semibold hover:text-green-900 flex items-center gap-1 text-sm mt-3 transition-all duration-300 hover:translate-x-1"
           >
             View more
@@ -534,7 +542,7 @@ if (currentProfile) {
             >
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"></path>
             </svg>
-          </button>
+          </button> */}
         </section>
       </main>
     </div>

@@ -23,7 +23,7 @@ export default function ProjectsPage() {
             Projects
           </h1>
           <p className="text-md sm:text-lg opacity-90 drop-shadow-md transition-all duration-300 hover:opacity-100">
-            View individual projects and all projects
+            A complete view of individual and team projects
           </p>
           <div className="mt-4 flex flex-wrap gap-4 text-sm font-medium drop-shadow-md">
             <div className="flex items-center space-x-2 bg-white/10 backdrop-blur-sm px-3 py-1.5 rounded-full transition-all duration-300 hover:scale-105 hover:bg-white/20">

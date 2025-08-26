@@ -450,7 +450,7 @@ const ProjectForm = ({ project, onSubmit, onCancel, operationStatus, operationEr
             </div>
           </div>
           
-          <div className="md:col-span-2">
+          {/* <div className="md:col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-1">Goals</label>
             <textarea
               name="goals"
@@ -459,7 +459,7 @@ const ProjectForm = ({ project, onSubmit, onCancel, operationStatus, operationEr
               className="w-full p-2 border border-gray-300 rounded-md"
               rows="2"
             />
-          </div>
+          </div> */}
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
             <textarea

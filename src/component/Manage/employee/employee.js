@@ -171,7 +171,7 @@ useEffect(() => {
       {!preview && (
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-lg font-semibold text-gray-900">
-            Employee Management
+           
           </h3>
           
           <div className="flex items-center gap-4">
@@ -236,7 +236,7 @@ useEffect(() => {
 
             <button
               onClick={() => setShowAddUser(true)}
-              className="bg-orange-500 text-white px-3 py-1 rounded-md text-sm hover:bg-orange-600"
+              className="bg-orange-500 text-white px-4 py-2 rounded-md text-sm hover:bg-orange-600"
             >
               <Plus className="h-4 w-4 inline mr-1" />
               Add Employee

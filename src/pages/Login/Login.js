@@ -44,7 +44,7 @@ const togglePasswordVisibility = () => {
             alt="Logo" 
             className="mx-auto mt-4 mb-2 w-56"
           />
-              <p className="text-gray-600 mt-2 text-lg">Internal Employee Portal</p>
+              <p className="text-gray-600 mt-2 text-lg">Sequoia Employee Hub</p>
         </div>
         {error && <div className="text-red-500 text-center">{error}</div>}
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>

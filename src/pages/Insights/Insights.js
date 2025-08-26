@@ -68,7 +68,7 @@ const Insights = () => {
       </header>
 
       <div className="mb-8 flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-gray-800">Latest Insights</h2>
+        <h2 className="text-2xl font-bold text-gray-800"></h2>
          {isAdmin &&(
           <>
         {currentProfile && (
@@ -108,7 +108,7 @@ const Insights = () => {
           <h3 className="text-xl font-medium text-gray-600 mb-2">No Insights yet</h3>
             {isAdmin &&(
           <>
-          <p className="text-gray-500 mb-4">Be the first to share Insights & Trends.</p>
+          {/* <p className="text-gray-500 mb-4">Be the first to share Insights & Trends.</p>
           {currentProfile && (
             <button
               onClick={() => setShowAddModal(true)}
@@ -119,7 +119,7 @@ const Insights = () => {
               </svg>
               Add First Insight
             </button>
-          )}
+          )} */}
           </>
             )}
         </div>

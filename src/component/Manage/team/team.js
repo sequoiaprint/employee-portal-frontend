@@ -217,7 +217,7 @@ const TeamComponent = ({onTeamCountChange}) => {
   return (
     <div className="bg-white rounded-lg shadow-sm border border-orange-100 p-6">
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-lg font-semibold text-gray-900">Team Management</h3>
+        <h3 className="text-lg font-semibold text-gray-900"></h3>
         <div className="flex items-center gap-4">
           {/* Search Bar */}
           <div className="relative">
@@ -282,7 +282,7 @@ const TeamComponent = ({onTeamCountChange}) => {
               setEditingTeam(null);
               setShowAddTeam(true);
             }}
-            className="bg-orange-500 text-white px-3 py-1 rounded-md text-sm hover:bg-orange-600 flex items-center"
+            className="bg-orange-500 text-white px-4 py-2 rounded-md text-sm hover:bg-orange-600 flex items-center"
           >
             <Plus className="h-4 w-4 inline mr-1" />
             Create Team

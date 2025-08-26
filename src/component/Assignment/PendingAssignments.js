@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { X, Clock, User, Calendar, FileText, CheckCircle, AlertCircle } from 'lucide-react';
 import Cookies from 'js-cookie';
-
+import HtmlContentDisplay, { getPlainTextFromHtml, isHtmlContentEmpty } from '../Global/HtmlContentDisplay';
 const xorDecrypt = (encrypted, secretKey = '28032002') => {
   try {
     const decoded = atob(encrypted);
@@ -38,11 +38,11 @@ const PendingAssignments = ({ isOpen, onClose, pendingTasks, onTaskCompleted }) 
   const [confirmationText, setConfirmationText] = useState('');
   const [error, setError] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
-//console.log(pendingTasks)
+  //console.log(pendingTasks)
 
   const CurrentUid = Cookies.get('userUid');
   const role = Cookies.get('role');
-//  console.log(CurrentUid,role)
+  //  console.log(CurrentUid,role)
   const isAdmin = role === "Admin Ops";
 
   // Remove the canEdit check from here since it needs to be per task
@@ -77,7 +77,7 @@ const PendingAssignments = ({ isOpen, onClose, pendingTasks, onTaskCompleted }) 
   useEffect(() => {
     const fetchAllProfiles = async () => {
       if (!pendingTasks || pendingTasks.length === 0) return;
-      
+
       // Get unique assignee IDs from all tasks
       const uniqueAssigneeIds = [...new Set(pendingTasks.map(task => task.assignee).filter(Boolean))];
 
@@ -133,7 +133,7 @@ const PendingAssignments = ({ isOpen, onClose, pendingTasks, onTaskCompleted }) 
 
       const updateData = {
         status: 'completed',
-        isCompleted:1
+        isCompleted: 1
       };
 
       const response = await fetch(`https://internalApi.sequoia-print.com/api/assignment/${taskId}`, {
@@ -158,7 +158,7 @@ const PendingAssignments = ({ isOpen, onClose, pendingTasks, onTaskCompleted }) 
       if (onTaskCompleted) {
         onTaskCompleted();
       }
-      
+
     } catch (error) {
       console.error('Error marking task as completed:', error);
       setError('Failed to mark task as completed');
@@ -177,6 +177,49 @@ const PendingAssignments = ({ isOpen, onClose, pendingTasks, onTaskCompleted }) 
     setConfirmationText('');
     setError('');
   };
+  const truncateHtmlContent = (html, wordLimit = 1025) => {
+    if (!html) return '';
+
+    // Get plain text to count words
+    const plainText = getPlainTextFromHtml(html);
+    const words = plainText.split(' ');
+
+    if (words.length <= wordLimit) return html;
+
+    // Create a temporary element to parse HTML
+    const tempElement = document.createElement('div');
+    tempElement.innerHTML = html;
+
+    // Function to recursively truncate text content
+    const truncateNode = (node, remainingWords) => {
+      if (remainingWords <= 0) return 0;
+
+      if (node.nodeType === Node.TEXT_NODE) {
+        const text = node.textContent;
+        const words = text.split(' ');
+
+        if (words.length <= remainingWords) {
+          return remainingWords - words.length;
+        } else {
+          node.textContent = words.slice(0, remainingWords).join(' ') + '...';
+          return 0;
+        }
+      }
+
+      if (node.nodeType === Node.ELEMENT_NODE) {
+        for (let i = 0; i < node.childNodes.length && remainingWords > 0; i++) {
+          remainingWords = truncateNode(node.childNodes[i], remainingWords);
+        }
+      }
+
+      return remainingWords;
+    };
+
+    // Truncate the content
+    truncateNode(tempElement, wordLimit);
+
+    return tempElement.innerHTML;
+  };
 
   if (!isOpen) return null;
 
@@ -192,7 +235,7 @@ const PendingAssignments = ({ isOpen, onClose, pendingTasks, onTaskCompleted }) 
             <X className="w-6 h-6" />
           </button>
         </div>
-        
+
         {pendingTasks.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
             <Clock className="w-12 h-12 mx-auto mb-4 text-gray-400" />
@@ -204,11 +247,14 @@ const PendingAssignments = ({ isOpen, onClose, pendingTasks, onTaskCompleted }) 
               // Check canEdit for each individual task
               const canEdit = isAdmin || CurrentUid === task.assignee;
               console.log(`Task ${task.id}: canEdit = ${canEdit}, CurrentUid = ${CurrentUid}, task.assignee = ${task.assignee}`);
-              
+
               return (
                 <div key={task.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
                   <div className="flex justify-between items-start mb-2">
-                    <h3 className="font-semibold text-gray-900">{task.title}</h3>
+                    <h3 className="font-semibold text-gray-900"><HtmlContentDisplay 
+                        content={truncateHtmlContent(task.title)} 
+                        className="task-title-preview"
+                      /></h3>
                     {(completingTaskId !== task.id && canEdit) && (
                       <button
                         onClick={() => handleStartCompletion(task.id)}
@@ -219,7 +265,7 @@ const PendingAssignments = ({ isOpen, onClose, pendingTasks, onTaskCompleted }) 
                       </button>
                     )}
                   </div>
-                  
+
                   {completingTaskId === task.id && (
                     <div className="mb-3 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
                       <p className="text-sm text-yellow-800 mb-2">
@@ -257,18 +303,18 @@ const PendingAssignments = ({ isOpen, onClose, pendingTasks, onTaskCompleted }) 
                       )}
                     </div>
                   )}
-                  
+
                   <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
                     <div className="flex items-center">
                       <User className="w-4 h-4 mr-2" />
                       <span>{getAssigneeName(task.assignee)}</span>
                     </div>
-                    
+
                     <div className="flex items-center">
                       <Calendar className="w-4 h-4 mr-2" />
                       <span>Due: {task.dueDate.toLocaleDateString()}</span>
                     </div>
-                    
+
                     {task.comment && (
                       <div className="col-span-2 flex items-start">
                         <FileText className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0" />

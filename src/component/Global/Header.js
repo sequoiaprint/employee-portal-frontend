@@ -149,6 +149,54 @@ const Header = ({ isSidebarCollapsed }) => {
     return () => clearInterval(interval);
   }, []);
 
+  // Handle click outside for TodoList dropdown
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showTodoDropdown) {
+        // Check if the click target is the todo button or inside the todo dropdown
+        const todoButton = event.target.closest('[data-todo-button]');
+        const todoDropdown = event.target.closest('.todo-dropdown-container');
+        
+        // Close if clicked outside both the button and dropdown
+        if (!todoButton && !todoDropdown) {
+          setShowTodoDropdown(false);
+        }
+      }
+    };
+
+    if (showTodoDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showTodoDropdown]);
+
+  // Handle click outside for Profile dropdown
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showProfileDropdown) {
+        // Check if the click target is the profile button or inside the profile dropdown
+        const profileButton = event.target.closest('[data-profile-button]');
+        const profileDropdown = event.target.closest('.profile-dropdown-container');
+        
+        // Close if clicked outside both the button and dropdown
+        if (!profileButton && !profileDropdown) {
+          setShowProfileDropdown(false);
+        }
+      }
+    };
+
+    if (showProfileDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showProfileDropdown]);
+
   const getPageTitle = () => {
     const path = location.pathname;
     switch (path) {
@@ -203,8 +251,15 @@ const Header = ({ isSidebarCollapsed }) => {
   };
 
   // Handle todo dropdown with count refresh
-  const handleTodoClick = () => {
+  const handleTodoClick = (e) => {
+    e.stopPropagation();
     setShowTodoDropdown(!showTodoDropdown);
+  };
+
+  // Handle profile dropdown click
+  const handleProfileDropdownClick = (e) => {
+    e.stopPropagation();
+    setShowProfileDropdown(!showProfileDropdown);
   };
 
   // Handle count updates from TodoList when it's open
@@ -213,7 +268,7 @@ const Header = ({ isSidebarCollapsed }) => {
   };
 
   return (
-    <header className="bg-[#eb772b] shadow-lg border-b border-gray-100 sticky top-0 z-30 backdrop-blur-sm">
+    <header className="bg-[#eb772b] shadow-lg  sticky top-0 z-30 backdrop-blur-sm">
       <div className="h-20 px-4 sm:px-6">
         {/* Mobile Layout */}
         <div className="md:hidden flex flex-col justify-center h-full">
@@ -236,13 +291,14 @@ const Header = ({ isSidebarCollapsed }) => {
 
             <div className="relative">
               <button
-                onClick={() => setShowProfileDropdown(!showProfileDropdown)}
+                onClick={handleProfileDropdownClick}
+                data-profile-button="true"
                 className="h-7 w-7 rounded-full bg-gradient-to-br from-orange-400 via-orange-500 to-orange-600 flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 ring-2 ring-white"
               >
                 {getProfileDisplay()}
               </button>
               {showProfileDropdown && (
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50">
+                <div className="profile-dropdown-container absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50">
                   <div className="px-4 py-3 border-b border-gray-100">
                     <p className="text-sm font-medium text-gray-900">{fullName}</p>
                     <p className="text-xs text-gray-500">{email}</p>
@@ -285,6 +341,7 @@ const Header = ({ isSidebarCollapsed }) => {
               <button
                 className="text-white flex flex-row items-center relative"
                 onClick={handleTodoClick}
+                data-todo-button="true"
               >
                 <ClipboardList size={30} />
                 
@@ -297,8 +354,11 @@ const Header = ({ isSidebarCollapsed }) => {
               </button>
 
               {showTodoDropdown && (
-                <div className="absolute right-0 mt-2 z-50">
-                  <TodoList onRemainingChange={handleRemainingChange} />
+                <div className="todo-dropdown-container absolute right-0 mt-2 z-50">
+                  <TodoList 
+                    onRemainingChange={handleRemainingChange}
+                    onClose={() => setShowTodoDropdown(false)}
+                  />
                 </div>
               )}
             </div>
@@ -312,13 +372,14 @@ const Header = ({ isSidebarCollapsed }) => {
 
             <div className="relative">
               <button
-                onClick={() => setShowProfileDropdown(!showProfileDropdown)}
+                onClick={handleProfileDropdownClick}
+                data-profile-button="true"
                 className="h-10 w-10 rounded-full bg-gradient-to-br from-orange-400 via-orange-500 to-orange-600 flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 ring-2 ring-white"
               >
                 {getProfileDisplay()}
               </button>
               {showProfileDropdown && (
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50">
+                <div className="profile-dropdown-container absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50">
                   <div className="px-4 py-3 border-b border-gray-100">
                     <p className="text-sm font-medium text-gray-900">
                       {fullName}

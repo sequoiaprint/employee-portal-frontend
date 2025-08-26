@@ -123,7 +123,7 @@ const News = () => {
 
          
             <div className="mb-8 flex justify-between items-center">
-                <h2 className="text-2xl font-bold text-gray-800">Latest News</h2>
+                <h2 className="text-2xl font-bold text-gray-800"></h2>
                             {isAdmin &&(
                 <button
                     onClick={() => setShowAddNews(true)}
@@ -155,8 +155,8 @@ const News = () => {
                     <h3 className="text-xl font-medium text-gray-600 mb-2">No news yet</h3>
                        {isAdmin &&(
                         <div>
-                    <p className="text-gray-500 mb-4">Be the first to share company updates and announcements.</p>
-                    <button
+                    {/* <p className="text-gray-500 mb-4">Be the first to share company updates and announcements.</p> */}
+                    {/* <button
                         onClick={() => setShowAddNews(true)}
                         className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-medium rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-300"
                     >
@@ -164,7 +164,7 @@ const News = () => {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                         </svg>
                         Add First News
-                    </button>
+                    </button> */}
                     </div>
                        )}
                 </div>

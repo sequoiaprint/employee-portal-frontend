@@ -41,7 +41,7 @@ const ProtectedRoute = () => {
     <div className="min-h-screen bg-gray-50 relative">
       <Header />
       <Sidebar />
-      <main id="main-content" className="pt-16 min-h-screen overflow-auto transition-all duration-300 ease-in-out">
+      <main id="main-content" className=" min-h-screen overflow-auto transition-all duration-300 ease-in-out">
         <div className="w-full">
           <Outlet />
         </div>

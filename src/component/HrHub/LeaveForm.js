@@ -38,29 +38,55 @@ const LeaveForm = ({ onSubmit, onClose }) => {
     reason: '',
     urls: []
   });
-  const userid=Cookies.get('userUid')
-  //console.log(userid)
+  const userid = Cookies.get('userUid');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
+  const [touchedFields, setTouchedFields] = useState({});
+  const [showValidation, setShowValidation] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+    
+    // Mark the field as touched when user changes it
+    if (!touchedFields[name]) {
+      setTouchedFields(prev => ({ ...prev, [name]: true }));
+    }
+  };
+
+  const handleBlur = (e) => {
+    const { name } = e.target;
+    setTouchedFields(prev => ({ ...prev, [name]: true }));
+  };
+
+  const isFieldValid = (fieldName) => {
+    if (!showValidation && !touchedFields[fieldName]) return true;
+    
+    switch (fieldName) {
+      case 'leaveType':
+        return formData.leaveType !== '';
+      case 'startDate':
+        return formData.startDate !== '';
+      case 'endDate':
+        return formData.endDate !== '';
+      case 'reason':
+        return formData.reason.trim() !== '';
+      default:
+        return true;
+    }
   };
 
   const handleFileUpload = (fileUrl) => {
-    // Since PhotoUploader only gives us the URL, we'll maintain both URL and preview separately
     setFormData(prev => ({ 
       ...prev, 
       urls: [...prev.urls, fileUrl] 
     }));
     
-    // Create a preview object to display
     setFilePreviews(prev => [
       ...prev,
       {
         url: fileUrl,
-        name: fileUrl.split('/').pop(), // Extract filename from URL
+        name: fileUrl.split('/').pop(),
         isImage: fileUrl.match(/\.(jpeg|jpg|gif|png)$/) !== null
       }
     ]);
@@ -74,8 +100,24 @@ const LeaveForm = ({ onSubmit, onClose }) => {
     setFilePreviews(prev => prev.filter((_, i) => i !== index));
   };
 
+  const isFormValid = () => {
+    return (
+      formData.leaveType !== '' &&
+      formData.startDate !== '' &&
+      formData.endDate !== '' &&
+      formData.reason.trim() !== ''
+    );
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setShowValidation(true);
+    
+    if (!isFormValid()) {
+      setError('Please fill in all required fields');
+      return;
+    }
+    
     setIsSubmitting(true);
     setError(null);
 
@@ -91,7 +133,7 @@ const LeaveForm = ({ onSubmit, onClose }) => {
         endDate: formData.endDate,
         reason: formData.reason,
         urls: formData.urls,
-        createdBy:  userid
+        createdBy: userid
       };
 
       const response = await fetch('https://internalApi.sequoia-print.com/api/leave', {
@@ -121,12 +163,17 @@ const LeaveForm = ({ onSubmit, onClose }) => {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label className="block text-sm font-medium text-gray-700">Leave Type</label>
+        <label className="block text-sm font-medium text-gray-700">
+          Leave Type <span className="text-red-500">*</span>
+        </label>
         <select
           name="leaveType"
           value={formData.leaveType}
           onChange={handleChange}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border"
+          onBlur={handleBlur}
+          className={`mt-1 block w-full rounded-md shadow-sm p-2 border ${
+            isFieldValid('leaveType') ? 'border-gray-300' : 'border-red-500'
+          }`}
           required
         >
           <option value="">Select leave type</option>
@@ -134,43 +181,70 @@ const LeaveForm = ({ onSubmit, onClose }) => {
           <option value="Vacation">Vacation</option>
           <option value="Personal">Personal</option>
         </select>
+        {!isFieldValid('leaveType') && (
+          <p className="mt-1 text-xs text-red-500">Leave type is required</p>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700">Start Date</label>
+          <label className="block text-sm font-medium text-gray-700">
+            Start Date <span className="text-red-500">*</span>
+          </label>
           <input
             type="date"
             name="startDate"
             value={formData.startDate}
             onChange={handleChange}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border"
+            onBlur={handleBlur}
+            className={`mt-1 block w-full rounded-md shadow-sm p-2 border ${
+              isFieldValid('startDate') ? 'border-gray-300' : 'border-red-500'
+            }`}
             required
           />
+          {!isFieldValid('startDate') && (
+            <p className="mt-1 text-xs text-red-500">Start date is required</p>
+          )}
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700">End Date</label>
+          <label className="block text-sm font-medium text-gray-700">
+            End Date <span className="text-red-500">*</span>
+          </label>
           <input
             type="date"
             name="endDate"
             value={formData.endDate}
             onChange={handleChange}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border"
+            onBlur={handleBlur}
+            className={`mt-1 block w-full rounded-md shadow-sm p-2 border ${
+              isFieldValid('endDate') ? 'border-gray-300' : 'border-red-500'
+            }`}
             required
           />
+          {!isFieldValid('endDate') && (
+            <p className="mt-1 text-xs text-red-500">End date is required</p>
+          )}
         </div>
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700">Reason</label>
+        <label className="block text-sm font-medium text-gray-700">
+          Reason <span className="text-red-500">*</span>
+        </label>
         <textarea
           name="reason"
           value={formData.reason}
           onChange={handleChange}
+          onBlur={handleBlur}
           rows={3}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border"
+          className={`mt-1 block w-full rounded-md shadow-sm p-2 border ${
+            isFieldValid('reason') ? 'border-gray-300' : 'border-red-500'
+          }`}
           required
         />
+        {!isFieldValid('reason') && (
+          <p className="mt-1 text-xs text-red-500">Reason is required</p>
+        )}
       </div>
 
       <div>

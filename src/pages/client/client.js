@@ -65,7 +65,7 @@ if (isLoading) {
                         Clients
                     </h1>
                     <p className="text-md sm:text-lg opacity-90 drop-shadow-md transition-all duration-300 hover:opacity-100">
-                        All clints we are working with
+                        Our valued clients and partners - trusted by the brands we proudly serve
                     </p>
                     <div className="mt-4 flex flex-wrap gap-4 text-sm font-medium drop-shadow-md">
                         <div className="flex items-center space-x-2 bg-white/10 backdrop-blur-sm px-3 py-1.5 rounded-full transition-all duration-300 hover:scale-105 hover:bg-white/20">
@@ -77,8 +77,8 @@ if (isLoading) {
             </header>
             <div className="mx-auto">
                 {/* Header */}
-                <div className="flex justify-end mb-6">
-                    <div className="rounded-lg shadow-sm p-6 mb-6 ">
+                <div className="flex justify-end mb-2">
+                    <div className="rounded-lg mb-2  ">
                         {/* Search Button (Collapsed State) */}
                         {!isSearchExpanded && (
                             <button

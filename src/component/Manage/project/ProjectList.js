@@ -1,6 +1,6 @@
 // components/ProjectList.js
-import React, { useState,useEffect } from 'react';
-import { Clock, CheckCircle, AlertCircle, Circle, X, User, Users, Mail, Phone, Building, MapPin, Eye,Search } from 'lucide-react';
+import React, { useState } from 'react';
+import { Clock, CheckCircle, AlertCircle, Circle, X, User, Users, Mail, Phone, Building, MapPin, Eye } from 'lucide-react';
 
 const statusIcons = {
   'Not Started': <Clock className="h-4 w-4 inline mr-1" />,
@@ -351,63 +351,6 @@ const ProjectList = ({ projects, status, error, onEdit, onDelete }) => {
   const [clientModalOpen, setClientModalOpen] = useState(false);
   const [teamModalOpen, setTeamModalOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState(null);
-  
-  // Search state
-  const [isSearchExpanded, setIsSearchExpanded] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [searchField, setSearchField] = useState('name');
-  const [suggestions, setSuggestions] = useState([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-
-  // Generate suggestions based on search term and field
-  useEffect(() => {
-    if (searchTerm.length > 0 && projects) {
-      const filtered = projects.filter(project => {
-        let fieldValue = '';
-        
-        if (searchField === 'name') {
-          fieldValue = project.name.toLowerCase();
-        } else if (searchField === 'job_no') {
-          fieldValue = project.job_no ? project.job_no.toLowerCase() : '';
-        }
-        
-        return fieldValue.includes(searchTerm.toLowerCase());
-      });
-      
-      const uniqueSuggestions = [...new Set(
-        filtered.map(project => {
-          if (searchField === 'name') {
-            return project.name;
-          } else if (searchField === 'job_no') {
-            return project.job_no;
-          }
-          return '';
-        })
-      )].filter(Boolean);
-      
-      setSuggestions(uniqueSuggestions.slice(0, 5));
-    } else {
-      setSuggestions([]);
-    }
-  }, [searchTerm, searchField, projects]);
-
-  const filteredProjects = projects ? projects.filter(project => {
-    if (!searchTerm) return true;
-    
-    let fieldValue = '';
-    if (searchField === 'name') {
-      fieldValue = project.name.toLowerCase();
-    } else if (searchField === 'job_no') {
-      fieldValue = project.job_no ? project.job_no.toLowerCase() : '';
-    }
-    
-    return fieldValue.includes(searchTerm.toLowerCase());
-  }) : [];
-
-  const handleSuggestionClick = (suggestion) => {
-    setSearchTerm(suggestion);
-    setShowSuggestions(false);
-  };
 
   const openClientModal = (project) => {
     setSelectedProject(project);
@@ -425,67 +368,8 @@ const ProjectList = ({ projects, status, error, onEdit, onDelete }) => {
 
   return (
     <>
-      {/* Search Bar */}
-      <div className="mb-6 flex justify-end">
-        <div className="relative">
-          <div className={`flex items-center transition-all duration-300 ${isSearchExpanded ? 'w-[600px]' : 'w-10'}`}>
-            {isSearchExpanded && (
-              <>
-                <select
-                  value={searchField}
-                  onChange={(e) => setSearchField(e.target.value)}
-                  className="h-10 px-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-1 focus:ring-orange-500 bg-white text-sm"
-                >
-                  <option value="name">Project Name</option>
-                  <option value="job_no">Job Number</option>
-                </select>
-                <div className="relative flex-1">
-                  <input
-                    type="text"
-                    value={searchTerm}
-                    onChange={(e) => {
-                      setSearchTerm(e.target.value);
-                      setShowSuggestions(true);
-                    }}
-                    onFocus={() => setShowSuggestions(true)}
-                    onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-                    placeholder="Search..."
-                    className="h-10 w-full px-3 py-2 border-t border-b border-gray-300 focus:outline-none focus:ring-1 focus:ring-orange-500 text-sm"
-                  />
-                  {showSuggestions && suggestions.length > 0 && (
-                    <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg">
-                      {suggestions.map((suggestion, index) => (
-                        <div
-                          key={index}
-                          className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm"
-                          onMouseDown={() => handleSuggestionClick(suggestion)}
-                        >
-                          {suggestion}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </>
-            )}
-            <button
-              onClick={() => {
-                setIsSearchExpanded(!isSearchExpanded);
-                if (isSearchExpanded) {
-                  setSearchTerm('');
-                  setShowSuggestions(false);
-                }
-              }}
-              className={`h-10 w-10 flex items-center justify-center ${isSearchExpanded ? 'bg-orange-500 text-white rounded-r-md' : 'bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300'}`}
-            >
-              {isSearchExpanded ? <X size={18} /> : <Search size={18} />}
-            </button>
-          </div>
-        </div>
-      </div>
-
       <div className="space-y-6">
-        {filteredProjects.map(project => {
+        {projects.map(project => {
           const milestones = parseMilestones(project.milestones);
           const milestoneStatuses = parseMilestoneStatuses(project.milestones_status);
           const calculatedProgress = calculateProgress(milestoneStatuses);

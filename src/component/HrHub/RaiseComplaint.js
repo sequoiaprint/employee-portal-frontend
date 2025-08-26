@@ -37,10 +37,39 @@ const RaiseComplaint = ({ onSubmit, onClose }) => {
   });
   const [uploadedUrls, setUploadedUrls] = useState([]);
   const userid = Cookies.get('userUid'); // as created at
+  const [touchedFields, setTouchedFields] = useState({});
+  const [showValidation, setShowValidation] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState(null);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+    
+    // Mark the field as touched when user changes it
+    if (!touchedFields[name]) {
+      setTouchedFields(prev => ({ ...prev, [name]: true }));
+    }
+  };
+
+  const handleBlur = (e) => {
+    const { name } = e.target;
+    setTouchedFields(prev => ({ ...prev, [name]: true }));
+  };
+
+  const isFieldValid = (fieldName) => {
+    if (!showValidation && !touchedFields[fieldName]) return true;
+    
+    switch (fieldName) {
+      case 'title':
+        return formData.title.trim() !== '';
+      case 'category':
+        return formData.category !== '';
+      case 'description':
+        return formData.description.trim() !== '';
+      default:
+        return true;
+    }
   };
 
   const handleUploadSuccess = (url) => {
@@ -49,12 +78,29 @@ const RaiseComplaint = ({ onSubmit, onClose }) => {
 
   const handleUploadError = (error) => {
     console.error('Upload error:', error);
-    // You might want to show this error to the user
+    setError('File upload failed. Please try again.');
+  };
+
+  const isFormValid = () => {
+    return (
+      formData.title.trim() !== '' &&
+      formData.category !== '' &&
+      formData.description.trim() !== ''
+    );
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setShowValidation(true);
     
+    if (!isFormValid()) {
+      setError('Please fill in all required fields');
+      return;
+    }
+    
+    setIsSubmitting(true);
+    setError(null);
+
     const complaintData = {
       title: formData.title,
       category: formData.category,
@@ -89,32 +135,47 @@ const RaiseComplaint = ({ onSubmit, onClose }) => {
       onSubmit(data);
       onClose();
     } catch (error) {
+      setError(error.message || 'Submission failed. Please try again.');
       console.error('Submission failed:', error);
-      // You might want to show this error to the user
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label className="block text-sm font-medium text-gray-700">Title</label>
+        <label className="block text-sm font-medium text-gray-700">
+          Title <span className="text-red-500">*</span>
+        </label>
         <input
           type="text"
           name="title"
           value={formData.title}
           onChange={handleChange}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border"
+          onBlur={handleBlur}
+          className={`mt-1 block w-full rounded-md shadow-sm p-2 border ${
+            isFieldValid('title') ? 'border-gray-300' : 'border-red-500'
+          }`}
           required
         />
+        {!isFieldValid('title') && (
+          <p className="mt-1 text-xs text-red-500">Title is required</p>
+        )}
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700">Category</label>
+        <label className="block text-sm font-medium text-gray-700">
+          Category <span className="text-red-500">*</span>
+        </label>
         <select
           name="category"
           value={formData.category}
           onChange={handleChange}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border"
+          onBlur={handleBlur}
+          className={`mt-1 block w-full rounded-md shadow-sm p-2 border ${
+            isFieldValid('category') ? 'border-gray-300' : 'border-red-500'
+          }`}
           required
         >
           <option value="">Select category</option>
@@ -123,6 +184,9 @@ const RaiseComplaint = ({ onSubmit, onClose }) => {
           <option value="Discrimination">Discrimination</option>
           <option value="Other">Other</option>
         </select>
+        {!isFieldValid('category') && (
+          <p className="mt-1 text-xs text-red-500">Category is required</p>
+        )}
       </div>
 
       <div>
@@ -144,15 +208,23 @@ const RaiseComplaint = ({ onSubmit, onClose }) => {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700">Description</label>
+        <label className="block text-sm font-medium text-gray-700">
+          Description <span className="text-red-500">*</span>
+        </label>
         <textarea
           name="description"
           value={formData.description}
           onChange={handleChange}
+          onBlur={handleBlur}
           rows={4}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border"
+          className={`mt-1 block w-full rounded-md shadow-sm p-2 border ${
+            isFieldValid('description') ? 'border-gray-300' : 'border-red-500'
+          }`}
           required
         />
+        {!isFieldValid('description') && (
+          <p className="mt-1 text-xs text-red-500">Description is required</p>
+        )}
       </div>
 
       <div>
@@ -189,19 +261,27 @@ const RaiseComplaint = ({ onSubmit, onClose }) => {
         </label>
       </div>
 
+      {error && (
+        <div className="text-red-500 text-sm mt-2">
+          {error}
+        </div>
+      )}
+
       <div className="flex justify-end space-x-3 pt-4">
         <button
           type="button"
           onClick={onClose}
           className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+          disabled={isSubmitting}
         >
           Cancel
         </button>
         <button
           type="submit"
-          className="px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700"
+          className="px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 disabled:bg-orange-400"
+          disabled={isSubmitting}
         >
-          Submit Complaint
+          {isSubmitting ? 'Submitting...' : 'Submit Complaint'}
         </button>
       </div>
     </form>

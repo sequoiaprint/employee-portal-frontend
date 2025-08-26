@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { X, Calendar, Clock, FileText, Upload, Send } from 'lucide-react';
 import Cookies from 'js-cookie';
 import PhotoUploader from './uploader';
-
+import HtmlContentDisplay, { getPlainTextFromHtml, isHtmlContentEmpty } from '../Global/HtmlContentDisplay';
 const xorDecrypt = (encrypted, secretKey = '28032002') => {
   try {
     const decoded = atob(encrypted);
@@ -87,7 +87,49 @@ const Request = ({ task, onClose, onUpdate }) => {
   };
 
   const statusDisplay = getStatusDisplay(task.status);
-
+      const truncateHtmlContent = (html, wordLimit = 1025) => {
+        if (!html) return '';
+        
+        // Get plain text to count words
+        const plainText = getPlainTextFromHtml(html);
+        const words = plainText.split(' ');
+        
+        if (words.length <= wordLimit) return html;
+        
+        // Create a temporary element to parse HTML
+        const tempElement = document.createElement('div');
+        tempElement.innerHTML = html;
+        
+        // Function to recursively truncate text content
+        const truncateNode = (node, remainingWords) => {
+          if (remainingWords <= 0) return 0;
+          
+          if (node.nodeType === Node.TEXT_NODE) {
+            const text = node.textContent;
+            const words = text.split(' ');
+            
+            if (words.length <= remainingWords) {
+              return remainingWords - words.length;
+            } else {
+              node.textContent = words.slice(0, remainingWords).join(' ') + '...';
+              return 0;
+            }
+          }
+          
+          if (node.nodeType === Node.ELEMENT_NODE) {
+            for (let i = 0; i < node.childNodes.length && remainingWords > 0; i++) {
+              remainingWords = truncateNode(node.childNodes[i], remainingWords);
+            }
+          }
+          
+          return remainingWords;
+        };
+        
+        // Truncate the content
+        truncateNode(tempElement, wordLimit);
+        
+        return tempElement.innerHTML;
+      };
   // Handle image upload success
   const handleUploadSuccess = (imageUrl) => {
     setUploadedImages(prev => [...prev, imageUrl]);
@@ -196,7 +238,10 @@ const Request = ({ task, onClose, onUpdate }) => {
           <div className="mb-6">
             <div className="bg-gray-50 rounded-lg p-4 mb-4">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-lg font-semibold text-gray-800">{task.text}</h3>
+                <h3 className="text-lg font-semibold text-gray-800"><HtmlContentDisplay 
+                        content={truncateHtmlContent(task.text)} 
+                        className="task-title-preview"
+                      /></h3>
                 <span className={`px-3 py-1 rounded-full text-sm font-medium ${statusDisplay.color}`}>
                   {statusDisplay.label}
                 </span>

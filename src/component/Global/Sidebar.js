@@ -22,7 +22,9 @@ const Sidebar = () => {
   const dispatch = useDispatch();
   const role = Cookies.get('role');
   const isAdmin = role === "Admin Ops";
-  
+   useEffect(() => {
+    setIsCollapsed(true);
+  }, [location.pathname]);
   // Handle responsive behavior and calculate sidebar height
   useEffect(() => {
     const handleResize = () => {
