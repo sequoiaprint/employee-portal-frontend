@@ -1055,54 +1055,7 @@ This document outlines the data flow and component architecture for the assignme
 Assignment Data Flow
 The application uses a centralized data flow model powered by Redux for managing assignment data. This ensures a single source of truth and predictable state management across all components.
 
-Data Flow Diagram
-Here is a diagram illustrating how assignment data flows through the application.
 
-graph TD
-    subgraph "User Interaction"
-        A[CreateTask Component] --> B{Redux Action: createAssignment};
-        C[Task Component] --> D{Redux Action: deleteAssignment};
-        E[ViewEditTaskPopup Component] --> F{Redux Action: updateAssignment};
-        G[Assignment Component] --> H{Redux Action: fetchAssignments};
-    end
-
-    subgraph "Redux State Management"
-        B --> I[assignment.js Redux Slice];
-        D --> I;
-        F --> I;
-        H --> I;
-        I -- Updates --> J[Redux Store];
-    end
-
-    subgraph "Component Display"
-        J -- Provides State --> K[Assignment Component];
-        K -- Passes Props --> L[Task Component];
-        K -- Passes Props --> M[Calendar Component];
-        K -- Passes Props --> N[PendingAssignments Component];
-        K -- Passes Props --> O[ViewTaskByStatus Component];
-        L -- Passes Props --> E;
-    end
-
-    style A fill:#f9f,stroke:#333,stroke-width:2px
-    style C fill:#f9f,stroke:#333,stroke-width:2px
-    style E fill:#f9f,stroke:#333,stroke-width:2px
-    style G fill:#f9f,stroke:#333,stroke-width:2px
-
-    style B fill:#ccf,stroke:#333,stroke-width:2px
-    style D fill:#ccf,stroke:#333,stroke-width:2px
-    style F fill:#ccf,stroke:#333,stroke-width:2px
-    style H fill:#ccf,stroke:#333,stroke-width:2px
-
-    style I fill:#fca,stroke:#333,stroke-width:2px
-    style J fill:#fca,stroke:#333,stroke-width:2px
-
-    style K fill:#cfc,stroke:#333,stroke-width:2px
-    style L fill:#cfc,stroke:#333,stroke-width:2px
-    style M fill:#cfc,stroke:#333,stroke-width:2px
-    style N fill:#cfc,stroke:#333,stroke-width:2px
-    style O fill:#cfc,stroke:#333,stroke-width:2px
-
-Explanation of the Flow:
 User Interaction & Action Dispatching:
 
 When a user creates a new task in the CreateTask component, it dispatches the createAssignment action.
