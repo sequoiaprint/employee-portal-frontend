@@ -3,6 +3,21 @@ import { useSelector } from 'react-redux';
 import PhotoUploader from '../Global/uploader';
 import axios from 'axios';
 import Cookies from 'js-cookie';
+import { 
+  Bold, 
+  Italic, 
+  Underline, 
+  List, 
+  ListOrdered, 
+  Image, 
+  Type,
+  Palette,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  Link,
+  Unlink
+} from 'lucide-react';
 
 // XOR decryption function
 const xorDecrypt = (encrypted, secretKey = '28032002') => {
@@ -43,7 +58,7 @@ const getAuthToken = () => {
 };
 
 const AddEditNews = ({ 
-  editingNews = null, // Pass existing news data for editing
+  editingNews = null,
   onNewsAdded, 
   onNewsUpdated,
   onClose 
@@ -57,11 +72,13 @@ const AddEditNews = ({
   const [formData, setFormData] = useState({
     title: editingNews?.title || '',
     body: editingNews?.body || '',
-    imageUrls: editingNews?.urls ? editingNews.urls.split(',').filter(url => url.trim()) : [],
   });
   
   const [localLoading, setLocalLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  const [showColorPicker, setShowColorPicker] = useState(false);
+  const [showFontSizePicker, setShowFontSizePicker] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   
   // Use a single ref to track submission state
   const submissionState = useRef({
@@ -70,7 +87,261 @@ const AddEditNews = ({
     abortController: null
   });
 
+  // Rich text editor ref
+  const bodyEditorRef = useRef(null);
+  const colorPickerRef = useRef(null);
+  const fontSizePickerRef = useRef(null);
+
   const fullName = currentProfile ? `${currentProfile.firstname || ''} ${currentProfile.lastname || ''}`.trim() : user?.name || 'Anonymous';
+
+  // Predefined colors for text
+  const textColors = [
+    '#000000', '#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF00FF', '#00FFFF',
+    '#800000', '#008000', '#000080', '#808000', '#800080', '#008080', '#808080',
+    '#FFA500', '#FFC0CB', '#A52A2A', '#DDA0DD', '#98FB98', '#F0E68C', '#87CEEB'
+  ];
+
+  // Font sizes
+  const fontSizes = ['12px', '14px', '16px', '18px', '20px', '24px', '28px', '32px', '36px', '48px'];
+
+  // Rich text editor functions
+  const execCommand = (command, value = null) => {
+    if (bodyEditorRef.current) {
+      bodyEditorRef.current.focus();
+      document.execCommand(command, false, value);
+      updateFormData();
+    }
+  };
+
+  const updateFormData = () => {
+    setTimeout(() => {
+      if (bodyEditorRef.current) {
+        const content = bodyEditorRef.current.innerHTML;
+        setFormData(prev => ({
+          ...prev,
+          body: content
+        }));
+      }
+    }, 10);
+  };
+
+  const handleBold = () => execCommand('bold');
+  const handleItalic = () => execCommand('italic');
+  const handleUnderline = () => execCommand('underline');
+  const handleBulletList = () => {
+    execCommand('insertUnorderedList');
+    updateFormData();
+  };
+  const handleNumberedList = () => {
+    execCommand('insertOrderedList');
+    updateFormData();
+  };
+  const handleAlignLeft = () => execCommand('justifyLeft');
+  const handleAlignCenter = () => execCommand('justifyCenter');
+  const handleAlignRight = () => execCommand('justifyRight');
+
+  const handleColorChange = (color) => {
+    execCommand('foreColor', color);
+    setShowColorPicker(false);
+  };
+
+  const handleFontSizeChange = (size) => {
+    // Use fontSize command with pixel values
+    execCommand('fontSize', '1'); // Reset first
+    setTimeout(() => {
+      const selection = window.getSelection();
+      if (selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        if (!range.collapsed) {
+          const span = document.createElement('span');
+          span.style.fontSize = size;
+          try {
+            range.surroundContents(span);
+            updateFormData();
+          } catch (e) {
+            // Fallback for complex selections
+            const contents = range.extractContents();
+            span.appendChild(contents);
+            range.insertNode(span);
+            updateFormData();
+          }
+        }
+      }
+    }, 10);
+    setShowFontSizePicker(false);
+  };
+
+  const handleImageInsert = async (imageUrl) => {
+    if (!bodyEditorRef.current || !imageUrl) return;
+    
+    try {
+      // Insert image at cursor position
+      const img = document.createElement('img');
+      img.src = imageUrl;
+      img.style.maxWidth = '100%';
+      img.style.height = 'auto';
+      img.style.margin = '10px 0';
+      img.style.borderRadius = '8px';
+      img.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
+      img.draggable = true;
+      img.contentEditable = false;
+      
+      // Add hover effect
+      img.onmouseenter = () => {
+        img.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+        img.style.cursor = 'pointer';
+      };
+      img.onmouseleave = () => {
+        img.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
+      };
+
+      // Insert at cursor position
+      const selection = window.getSelection();
+      if (selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        range.deleteContents();
+        range.insertNode(img);
+      } else {
+        bodyEditorRef.current.appendChild(img);
+      }
+      
+      // Move cursor after image
+      const newRange = document.createRange();
+      newRange.setStartAfter(img);
+      newRange.setEndAfter(img);
+      selection.removeAllRanges();
+      selection.addRange(newRange);
+      
+      updateFormData();
+      
+    } catch (error) {
+      console.error('Error inserting image:', error);
+      setErrors({ submit: 'Failed to insert image' });
+    }
+  };
+
+  const handleLinkInsert = () => {
+    const url = prompt('Enter URL:');
+    if (url) {
+      execCommand('createLink', url);
+    }
+  };
+
+  const handleLinkRemove = () => execCommand('unlink');
+
+  // Handle paste events to maintain formatting and process images
+  const handleBodyEditorPaste = async (e) => {
+    e.preventDefault();
+    
+    // Handle text paste
+    const textPaste = (e.clipboardData || window.clipboardData).getData('text/plain');
+    if (textPaste) {
+      document.execCommand('insertText', false, textPaste);
+      updateFormData();
+      return;
+    }
+
+    // Handle image paste
+    const items = e.clipboardData.items;
+    for (let item of items) {
+      if (item.type.indexOf('image') !== -1) {
+        const file = item.getAsFile();
+        if (file) {
+          // For pasted images, we need to upload them first
+          setIsUploadingImage(true);
+          try {
+            const token = getAuthToken();
+            if (!token) {
+              throw new Error('Authentication required for image upload');
+            }
+            
+            const formData = new FormData();
+            formData.append('files', file);
+            
+            const response = await axios.post(
+              'https://internalApi.sequoia-print.com/api/files/upload',
+              formData,
+              {
+                headers: { 
+                  Authorization: `Bearer ${token}`,
+                  'Content-Type': 'multipart/form-data'
+                },
+              }
+            );
+            
+            const imageUrl = response.data.data?.[0]?.url || response.data.url;
+            if (imageUrl) {
+              await handleImageInsert(imageUrl);
+            }
+          } catch (error) {
+            console.error('Error uploading pasted image:', error);
+            setErrors({ submit: 'Failed to upload pasted image' });
+          } finally {
+            setIsUploadingImage(false);
+          }
+        }
+      }
+    }
+  };
+
+  const handleBodyEditorKeyDown = (e) => {
+    // Handle keyboard shortcuts
+    if (e.ctrlKey || e.metaKey) {
+      switch (e.key.toLowerCase()) {
+        case 'b':
+          e.preventDefault();
+          handleBold();
+          break;
+        case 'i':
+          e.preventDefault();
+          handleItalic();
+          break;
+        case 'u':
+          e.preventDefault();
+          handleUnderline();
+          break;
+        case 'k':
+          e.preventDefault();
+          handleLinkInsert();
+          break;
+      }
+    }
+    
+    // Handle Enter key for better list formatting
+    if (e.key === 'Enter') {
+      setTimeout(updateFormData, 10);
+    }
+  };
+
+  const handleBodyEditorInput = (e) => {
+    const content = e.target.innerHTML;
+    setFormData(prev => ({
+      ...prev,
+      body: content
+    }));
+  };
+
+  // Click outside to close pickers
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (colorPickerRef.current && !colorPickerRef.current.contains(event.target)) {
+        setShowColorPicker(false);
+      }
+      if (fontSizePickerRef.current && !fontSizePickerRef.current.contains(event.target)) {
+        setShowFontSizePicker(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Initialize rich text editor content when editing
+  useEffect(() => {
+    if (isEditMode && editingNews?.body && bodyEditorRef.current) {
+      bodyEditorRef.current.innerHTML = editingNews.body;
+    }
+  }, [isEditMode, editingNews?.body]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -87,26 +358,6 @@ const AddEditNews = ({
     }
   };
 
-  const handleImageUploadSuccess = (url) => {
-    if (!formData.imageUrls.includes(url)) {
-      if (formData.imageUrls.length < 4) {
-        setFormData(prev => ({
-          ...prev,
-          imageUrls: [...prev.imageUrls, url]
-        }));
-      } else {
-        setErrors({ submit: 'Maximum of 4 images allowed' });
-      }
-    }
-  };
-
-  const removeImageUrl = (index) => {
-    setFormData(prev => ({
-      ...prev,
-      imageUrls: prev.imageUrls.filter((_, i) => i !== index)
-    }));
-  };
-
   const validateForm = () => {
     const newErrors = {};
     
@@ -114,7 +365,9 @@ const AddEditNews = ({
       newErrors.title = 'Title is required';
     }
     
-    if (!formData.body.trim()) {
+    // Get the content from the rich text editor for validation
+    const bodyContent = bodyEditorRef.current ? bodyEditorRef.current.innerHTML.trim() : formData.body;
+    if (!bodyContent || bodyContent === '<br>' || bodyContent === '') {
       newErrors.body = 'Body is required';
     }
 
@@ -127,7 +380,7 @@ const AddEditNews = ({
     e.stopPropagation();
 
     // Prevent multiple submissions
-    if (submissionState.current.isSubmitting) {
+    if (submissionState.current.isSubmitting || isUploadingImage) {
       console.log('Submission blocked - already processing');
       return;
     }
@@ -160,10 +413,13 @@ const AddEditNews = ({
         throw new Error('No authentication found');
       }
 
+      // Get the HTML content from the rich text editor
+      const bodyContent = bodyEditorRef.current ? bodyEditorRef.current.innerHTML.trim() : formData.body;
+
       const newsData = {
         title: formData.title.trim(),
-        body: formData.body.trim(),
-        urls: formData.imageUrls.join(','),
+        body: bodyContent,
+        urls: '', // No separate URLs since images are embedded in content
         createdBy: currentProfile.uid
       };
 
@@ -195,9 +451,12 @@ const AddEditNews = ({
       if (!isEditMode) {
         setFormData({
           title: '',
-          body: '',
-          imageUrls: []
+          body: ''
         });
+        // Clear the rich text editor
+        if (bodyEditorRef.current) {
+          bodyEditorRef.current.innerHTML = '';
+        }
       }
       
       // Call appropriate callbacks
@@ -259,9 +518,56 @@ const AddEditNews = ({
     };
   }, []);
 
+  // Handle drag and drop for images
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+  };
+
+  const handleDrop = async (e) => {
+    e.preventDefault();
+    const files = Array.from(e.dataTransfer.files);
+    
+    for (const file of files) {
+      if (file.type.startsWith('image/')) {
+        setIsUploadingImage(true);
+        try {
+          const token = getAuthToken();
+          if (!token) {
+            throw new Error('Authentication required for image upload');
+          }
+          
+          const formData = new FormData();
+          formData.append('files', file);
+          
+          const response = await axios.post(
+            'https://internalApi.sequoia-print.com/api/files/upload',
+            formData,
+            {
+              headers: { 
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'multipart/form-data'
+              },
+            }
+          );
+          
+          const imageUrl = response.data.data?.[0]?.url || response.data.url;
+          if (imageUrl) {
+            await handleImageInsert(imageUrl);
+          }
+        } catch (error) {
+          console.error('Error uploading dropped image:', error);
+          setErrors({ submit: 'Failed to upload dropped image' });
+        } finally {
+          setIsUploadingImage(false);
+        }
+      }
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-6 rounded-t-xl">
           <div className="flex items-center justify-between">
@@ -272,7 +578,7 @@ const AddEditNews = ({
               type="button"
               onClick={onClose}
               className="text-white hover:text-gray-200 transition-colors"
-              disabled={localLoading}
+              disabled={localLoading || isUploadingImage}
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -282,7 +588,7 @@ const AddEditNews = ({
           <p className="text-blue-100 mt-2">
             {isEditMode 
               ? 'Update your company news and announcements' 
-              : 'Share the latest company updates and announcements'
+              : 'Create rich content with images, formatting, and styling'
             }
           </p>
         </div>
@@ -322,88 +628,359 @@ const AddEditNews = ({
               }`}
               placeholder="Enter news title..."
               maxLength={255}
-              disabled={localLoading}
+              disabled={localLoading || isUploadingImage}
             />
             {errors.title && <p className="mt-1 text-sm text-red-600">{errors.title}</p>}
           </div>
 
-          {/* Body */}
+          {/* Enhanced Rich Text Editor */}
           <div>
             <label htmlFor="body" className="block text-sm font-medium text-gray-700 mb-2">
               Content *
             </label>
-            <textarea
-              id="body"
-              name="body"
-              value={formData.body}
-              onChange={handleInputChange}
-              rows={6}
-              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y ${
-                errors.body ? 'border-red-500' : 'border-gray-300'
-              }`}
-              placeholder="Write your news content here..."
-              disabled={localLoading}
-            />
-            {errors.body && <p className="mt-1 text-sm text-red-600">{errors.body}</p>}
-          </div>
-
-          {/* Image Upload */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Images (Optional - Max 4)
-            </label>
             
-            {/* Photo Uploader */}
-            {formData.imageUrls.length < 4 && (
+            {/* Enhanced Rich Text Toolbar */}
+            <div className="flex flex-wrap items-center gap-1 p-3 border border-b-0 rounded-t bg-gray-50 relative">
+              {/* Text Formatting */}
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={handleBold}
+                  className="p-2 hover:bg-gray-200 rounded text-gray-600 hover:text-gray-800 transition-colors"
+                  title="Bold (Ctrl+B)"
+                  disabled={localLoading || isUploadingImage}
+                >
+                  <Bold size={16} />
+                </button>
+                
+                <button
+                  type="button"
+                  onClick={handleItalic}
+                  className="p-2 hover:bg-gray-200 rounded text-gray-600 hover:text-gray-800 transition-colors"
+                  title="Italic (Ctrl+I)"
+                  disabled={localLoading || isUploadingImage}
+                >
+                  <Italic size={16} />
+                </button>
+                
+                <button
+                  type="button"
+                  onClick={handleUnderline}
+                  className="p-2 hover:bg-gray-200 rounded text-gray-600 hover:text-gray-800 transition-colors"
+                  title="Underline (Ctrl+U)"
+                  disabled={localLoading || isUploadingImage}
+                >
+                  <Underline size={16} />
+                </button>
+              </div>
+              
+              <div className="w-px h-6 bg-gray-300 mx-1"></div>
+              
+              {/* Font Size */}
+              <div className="relative" ref={fontSizePickerRef}>
+                <button
+                  type="button"
+                  onClick={() => setShowFontSizePicker(!showFontSizePicker)}
+                  className="p-2 hover:bg-gray-200 rounded text-gray-600 hover:text-gray-800 transition-colors flex items-center gap-1"
+                  title="Font Size"
+                  disabled={localLoading || isUploadingImage}
+                >
+                  <Type size={16} />
+                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                </button>
+                
+                {showFontSizePicker && (
+                  <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-10 p-2 grid grid-cols-5 gap-2 min-w-[200px]">
+                    {fontSizes.map(size => (
+                      <button
+                        key={size}
+                        type="button"
+                        onClick={() => handleFontSizeChange(size)}
+                        className="p-2 hover:bg-blue-50 rounded text-center text-sm border hover:border-blue-300 transition-colors"
+                        style={{ fontSize: size }}
+                      >
+                        {size}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              
+              {/* Text Color */}
+              <div className="relative" ref={colorPickerRef}>
+                <button
+                  type="button"
+                  onClick={() => setShowColorPicker(!showColorPicker)}
+                  className="p-2 hover:bg-gray-200 rounded text-gray-600 hover:text-gray-800 transition-colors flex items-center gap-1"
+                  title="Text Color"
+                  disabled={localLoading || isUploadingImage}
+                >
+                  <Palette size={16} />
+                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                </button>
+                
+                {showColorPicker && (
+                  <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-10 p-3 grid grid-cols-7 gap-2 min-w-[200px]">
+                    {textColors.map(color => (
+                      <button
+                        key={color}
+                        type="button"
+                        onClick={() => handleColorChange(color)}
+                        className="w-6 h-6 rounded border border-gray-300 hover:scale-110 transition-transform"
+                        style={{ backgroundColor: color }}
+                        title={color}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+              
+              <div className="w-px h-6 bg-gray-300 mx-1"></div>
+              
+              {/* Lists */}
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={handleBulletList}
+                  className="p-2 hover:bg-gray-200 rounded text-gray-600 hover:text-gray-800 transition-colors"
+                  title="Bullet List"
+                  disabled={localLoading || isUploadingImage}
+                >
+                  <List size={16} />
+                </button>
+                
+                <button
+                  type="button"
+                  onClick={handleNumberedList}
+                  className="p-2 hover:bg-gray-200 rounded text-gray-600 hover:text-gray-800 transition-colors"
+                  title="Numbered List"
+                  disabled={localLoading || isUploadingImage}
+                >
+                  <ListOrdered size={16} />
+                </button>
+              </div>
+              
+              <div className="w-px h-6 bg-gray-300 mx-1"></div>
+              
+              {/* Alignment */}
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={handleAlignLeft}
+                  className="p-2 hover:bg-gray-200 rounded text-gray-600 hover:text-gray-800 transition-colors"
+                  title="Align Left"
+                  disabled={localLoading || isUploadingImage}
+                >
+                  <AlignLeft size={16} />
+                </button>
+                
+                <button
+                  type="button"
+                  onClick={handleAlignCenter}
+                  className="p-2 hover:bg-gray-200 rounded text-gray-600 hover:text-gray-800 transition-colors"
+                  title="Align Center"
+                  disabled={localLoading || isUploadingImage}
+                >
+                  <AlignCenter size={16} />
+                </button>
+                
+                <button
+                  type="button"
+                  onClick={handleAlignRight}
+                  className="p-2 hover:bg-gray-200 rounded text-gray-600 hover:text-gray-800 transition-colors"
+                  title="Align Right"
+                  disabled={localLoading || isUploadingImage}
+                >
+                  <AlignRight size={16} />
+                </button>
+              </div>
+              
+              <div className="w-px h-6 bg-gray-300 mx-1"></div>
+              
+              {/* Links */}
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={handleLinkInsert}
+                  className="p-2 hover:bg-gray-200 rounded text-gray-600 hover:text-gray-800 transition-colors"
+                  title="Insert Link (Ctrl+K)"
+                  disabled={localLoading || isUploadingImage}
+                >
+                  <Link size={16} />
+                </button>
+                
+                <button
+                  type="button"
+                  onClick={handleLinkRemove}
+                  className="p-2 hover:bg-gray-200 rounded text-gray-600 hover:text-gray-800 transition-colors"
+                  title="Remove Link"
+                  disabled={localLoading || isUploadingImage}
+                >
+                  <Unlink size={16} />
+                </button>
+              </div>
+              
+              <div className="w-px h-6 bg-gray-300 mx-1"></div>
+              
+              {/* Image Insert */}
               <PhotoUploader
-                onUploadSuccess={handleImageUploadSuccess}
+                onUploadSuccess={handleImageInsert}
                 onUploadError={(error) => setErrors({ submit: error })}
                 accept="image/*"
-                disabled={localLoading}
+                disabled={localLoading || isUploadingImage}
               >
-                <div className={`flex flex-col items-center justify-center p-4 border-2 border-dashed rounded-lg transition-colors cursor-pointer ${
-                  localLoading ? 'border-gray-200 bg-gray-50' : 'border-gray-300 hover:border-blue-500'
-                }`}>
-                  <svg className="w-8 h-8 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                  </svg>
-                  <p className="text-sm">Click to upload or drag and drop</p>
-                  <p className="text-xs">PNG, JPG, GIF up to 2MB</p>
-                </div>
+                <button
+                  type="button"
+                  className="p-2 hover:bg-gray-200 rounded text-gray-600 hover:text-gray-800 transition-colors"
+                  title="Insert Image"
+                  disabled={localLoading || isUploadingImage}
+                >
+                  <Image size={16} />
+                </button>
               </PhotoUploader>
-            )}
+            </div>
 
-            {/* Preview uploaded images */}
-            {formData.imageUrls.length > 0 && (
-              <div className="mt-4 space-y-3">
-                <h4 className="text-sm font-medium text-gray-700">
-                  {isEditMode ? 'Current Images:' : 'Uploaded Images:'}
-                </h4>
-                <div className="grid grid-cols-2 gap-3">
-                  {formData.imageUrls.map((url, index) => (
-                    <div key={index} className="relative group">
-                      <img
-                        src={url}
-                        alt={`${isEditMode ? 'Current' : 'Uploaded'} ${index + 1}`}
-                        className="w-full h-32 object-cover rounded-lg border border-gray-200"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => !localLoading && removeImageUrl(index)}
-                        className={`absolute top-2 right-2 rounded-full p-1 ${
-                          localLoading ? 'bg-gray-400 cursor-not-allowed' : 'bg-red-500 text-white opacity-0 group-hover:opacity-100'
-                        } transition-opacity`}
-                        disabled={localLoading}
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            {/* Rich Text Editor */}
+            <div
+              ref={bodyEditorRef}
+              contentEditable={!localLoading && !isUploadingImage}
+              onInput={handleBodyEditorInput}
+              onKeyDown={handleBodyEditorKeyDown}
+              onPaste={handleBodyEditorPaste}
+              onDragOver={handleDragOver}
+              onDrop={handleDrop}
+              className={`w-full p-4 border border-t-0 rounded-b min-h-[300px] max-h-[400px] overflow-y-auto focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                errors.body ? 'border-red-500' : 'border-gray-300'
+              } ${localLoading || isUploadingImage ? 'bg-gray-100' : 'bg-white'}`}
+              style={{
+                minHeight: '300px',
+                maxHeight: '400px',
+                overflowY: 'auto',
+                lineHeight: '1.6'
+              }}
+              data-placeholder="Write your news content here... Use the toolbar for formatting, drag & drop images, or paste content directly."
+              suppressContentEditableWarning={true}
+            />
+            
+            <div className="mt-2 text-xs text-gray-500 space-y-1">
+              <p>• Use toolbar buttons or keyboard shortcuts: <kbd className="px-1 py-0.5 bg-gray-100 border rounded text-xs">Ctrl+B</kbd> (Bold), <kbd className="px-1 py-0.5 bg-gray-100 border rounded text-xs">Ctrl+I</kbd> (Italic), <kbd className="px-1 py-0.5 bg-gray-100 border rounded text-xs">Ctrl+U</kbd> (Underline), <kbd className="px-1 py-0.5 bg-gray-100 border rounded text-xs">Ctrl+K</kbd> (Link)</p>
+              <p>• Drag & drop images directly into the editor or use the image button</p>
+              <p>• Images can be resized by dragging corners and moved around within the content</p>
+            </div>
+
+            {errors.body && <p className="mt-1 text-sm text-red-600">{errors.body}</p>}
+
+            {/* Add comprehensive CSS for rich text editor styling */}
+            <style jsx>{`
+              div[contenteditable]:empty:before {
+                content: attr(data-placeholder);
+                color: #9CA3AF;
+                pointer-events: none;
+                position: absolute;
+              }
+              
+              div[contenteditable] {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+                line-height: 1.6;
+              }
+              
+              div[contenteditable] ul {
+                list-style-type: disc;
+                padding-left: 25px;
+                margin: 10px 0;
+              }
+              
+              div[contenteditable] ol {
+                list-style-type: decimal;
+                padding-left: 25px;
+                margin: 10px 0;
+              }
+              
+              div[contenteditable] li {
+                margin: 5px 0;
+                padding-left: 5px;
+              }
+              
+              div[contenteditable] strong, 
+              div[contenteditable] b {
+                font-weight: bold;
+              }
+              
+              div[contenteditable] em, 
+              div[contenteditable] i {
+                font-style: italic;
+              }
+              
+              div[contenteditable] u {
+                text-decoration: underline;
+              }
+              
+              div[contenteditable] a {
+                color: #3B82F6;
+                text-decoration: underline;
+              }
+              
+              div[contenteditable] a:hover {
+                color: #1D4ED8;
+              }
+              
+              div[contenteditable] img {
+                max-width: 100%;
+                height: auto;
+                margin: 10px 0;
+                border-radius: 8px;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                transition: all 0.2s ease;
+              }
+              
+              div[contenteditable] img:hover {
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                transform: scale(1.02);
+              }
+              
+              div[contenteditable] img.selected {
+                border: 2px solid #3B82F6;
+                box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+              }
+              
+              div[contenteditable] p {
+                margin: 8px 0;
+              }
+              
+              div[contenteditable] h1 {
+                font-size: 1.8em;
+                font-weight: bold;
+                margin: 16px 0 8px 0;
+              }
+              
+              div[contenteditable] h2 {
+                font-size: 1.5em;
+                font-weight: bold;
+                margin: 14px 0 7px 0;
+              }
+              
+              div[contenteditable] h3 {
+                font-size: 1.2em;
+                font-weight: bold;
+                margin: 12px 0 6px 0;
+              }
+              
+              div[contenteditable] blockquote {
+                border-left: 4px solid #E5E7EB;
+                margin: 16px 0;
+                padding-left: 16px;
+                color: #6B7280;
+                font-style: italic;
+              }
+              
+              div[contenteditable]:focus {
+                outline: none;
+              }
+            `}</style>
           </div>
 
           {/* Error Message */}
@@ -413,32 +990,26 @@ const AddEditNews = ({
             </div>
           )}
 
-          {/* Submit Buttons */}
-          <div className="flex space-x-4 pt-4">
+          {/* Action Buttons */}
+          <div className="flex items-center justify-end space-x-4 pt-4 border-t border-gray-200">
             <button
               type="button"
               onClick={onClose}
-              disabled={localLoading}
-              className={`flex-1 px-6 py-3 border rounded-lg font-medium transition-colors ${
-                localLoading ? 'border-gray-300 text-gray-400 cursor-not-allowed' : 'border-gray-300 text-gray-700 hover:bg-gray-50'
-              }`}
+              className="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors"
+              disabled={localLoading || isUploadingImage}
             >
               Cancel
             </button>
+            
             <button
               type="submit"
-              disabled={localLoading}
-              className={`flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium transition-all ${
-                localLoading ? 'opacity-50 cursor-not-allowed' : 'hover:from-blue-700 hover:to-purple-700 transform hover:scale-105'
-              }`}
+              className="px-6 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-medium rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[120px]"
+              disabled={localLoading || isUploadingImage}
             >
-              {localLoading ? (
-                <div className="flex items-center justify-center">
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  {isEditMode ? 'Updating...' : 'Publishing...'}
+              {localLoading || isUploadingImage ? (
+                <div className="flex items-center">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  {isUploadingImage ? 'Uploading...' : 'Processing...'}
                 </div>
               ) : (
                 isEditMode ? 'Update News' : 'Publish News'

@@ -139,7 +139,7 @@ if (currentProfile) {
         {/* News & Updates */}
         <section
          onClick={handleViewMoreNews}
-         className="bg-white rounded-xl shadow-lg p-6 space-y-4 border border-gray-100 transition-all duration-300 hover:border-orange-100 hover:shadow-xl hover:-translate-y-1">
+         className="cursor-pointer bg-white rounded-xl shadow-lg p-6 space-y-4 border border-gray-100 transition-all duration-300 hover:border-orange-100 hover:shadow-xl hover:-translate-y-1">
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-3">
               <span className="inline-block p-2 rounded-full bg-orange-100 shadow-sm transition-all duration-300 hover:bg-orange-200">
@@ -243,7 +243,7 @@ if (currentProfile) {
         {/* Insights & Trends */}
         <section
         onClick={handleViewMoreInsights}
-         className="bg-white  rounded-xl shadow-lg p-6 space-y-4 border border-gray-100 transition-all duration-300 hover:border-blue-100 hover:shadow-xl hover:-translate-y-1">
+         className="bg-white cursor-pointer rounded-xl shadow-lg p-6 space-y-4 border border-gray-100 transition-all duration-300 hover:border-blue-100 hover:shadow-xl hover:-translate-y-1">
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-3">
               <span className="inline-block p-2 rounded-full bg-blue-100 shadow-sm transition-all duration-300 hover:bg-blue-200">
@@ -356,7 +356,7 @@ if (currentProfile) {
         {/* Client Portfolio */}
         <section 
          onClick={handleViewMoreClients}
-        className="bg-white rounded-xl shadow-lg p-6 space-y-4 border border-gray-100 transition-all duration-300 hover:border-purple-100 hover:shadow-xl hover:-translate-y-1">
+        className="bg-white rounded-xl cursor-pointer shadow-lg p-6 space-y-4 border border-gray-100 transition-all duration-300 hover:border-purple-100 hover:shadow-xl hover:-translate-y-1">
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-3">
               <span className="inline-block p-2 rounded-full bg-purple-100 shadow-sm transition-all duration-300 hover:bg-purple-200">
@@ -477,7 +477,7 @@ if (currentProfile) {
         {/* HR Hub */}
         <section 
         onClick={handleViewMoreHr}
-        className="bg-white rounded-xl shadow-lg p-6 space-y-4 border border-gray-100 transition-all duration-300 hover:border-green-100 hover:shadow-xl hover:-translate-y-1">
+        className="bg-white cursor-pointer rounded-xl shadow-lg p-6 space-y-4 border border-gray-100 transition-all duration-300 hover:border-green-100 hover:shadow-xl hover:-translate-y-1">
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-3">
               <span className="inline-block p-2 rounded-full bg-green-100 shadow-sm transition-all duration-300 hover:bg-green-200">

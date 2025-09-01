@@ -14,13 +14,13 @@ import {
 } from '../../../redux/client/client';
 import PhotoUploader from '../../Global/uploader';
 
-const ClientComponent = ({onClientsCountChange}) => {
+const ClientComponent = ({ onClientsCountChange }) => {
   const dispatch = useDispatch();
   const clients = useSelector(selectAllClients);
   const clientsStatus = useSelector(selectClientsStatus);
   const operationStatus = useSelector(selectOperationStatus);
-  const [uid, setUid] = useState(Cookies.get('userUid') || '');
-//  console.log(clients.length)
+  const [uid, setUid] = useState(Cookies.get('userUidCOf') || '');
+  
   // Form state
   const [formData, setFormData] = useState({
     client_name: '',
@@ -32,17 +32,21 @@ const ClientComponent = ({onClientsCountChange}) => {
     urls: '',
     createdBy: uid
   });
-  
+
+  const [contacts, setContacts] = useState([{ name: '', phone: '', email: '' }]);
   const [editingId, setEditingId] = useState(null);
   const [imageUrls, setImageUrls] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  
+
   // Search state
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [searchField, setSearchField] = useState('client_name');
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+
+  const role = Cookies.get('roleCof');
+  const isAdmin = role === "Admin Ops";
 
   // Fetch clients on component mount and when operation succeeds
   useEffect(() => {
@@ -61,13 +65,12 @@ const ClientComponent = ({onClientsCountChange}) => {
     }
   }, [operationStatus, dispatch]);
 
-
-
   useEffect(() => {
     if (onClientsCountChange && clients) {
       onClientsCountChange(clients.length);
     }
   }, [clients, onClientsCountChange]);
+
   // Generate suggestions based on search term and field
   useEffect(() => {
     if (searchTerm.length > 0) {
@@ -75,11 +78,11 @@ const ClientComponent = ({onClientsCountChange}) => {
         const fieldValue = String(client[searchField] || '').toLowerCase();
         return fieldValue.includes(searchTerm.toLowerCase());
       });
-      
+
       const uniqueSuggestions = [...new Set(
         filtered.map(client => client[searchField])
       )].filter(Boolean);
-      
+
       setSuggestions(uniqueSuggestions.slice(0, 5));
     } else {
       setSuggestions([]);
@@ -92,6 +95,24 @@ const ClientComponent = ({onClientsCountChange}) => {
       ...prev,
       [name]: value
     }));
+  };
+
+  const handleContactChange = (index, field, value) => {
+    const updatedContacts = [...contacts];
+    updatedContacts[index][field] = value;
+    setContacts(updatedContacts);
+  };
+
+  const addContact = () => {
+    setContacts([...contacts, { name: '', phone: '', email: '' }]);
+  };
+
+  const removeContact = (index) => {
+    if (contacts.length > 1) {
+      const updatedContacts = [...contacts];
+      updatedContacts.splice(index, 1);
+      setContacts(updatedContacts);
+    }
   };
 
   const handleImageUpload = (url) => {
@@ -113,14 +134,23 @@ const ClientComponent = ({onClientsCountChange}) => {
       urls: '',
       createdBy: uid
     });
+    setContacts([{ name: '', phone: '', email: '' }]);
     setImageUrls([]);
     setEditingId(null);
     setIsModalOpen(false);
   };
 
   const prepareFormData = () => {
+    // Join contact information with commas
+    const names = contacts.map(contact => contact.name).filter(Boolean).join(',');
+    const phones = contacts.map(contact => contact.phone).filter(Boolean).join(',');
+    const emails = contacts.map(contact => contact.email).filter(Boolean).join(',');
+
     return {
       ...formData,
+      name: names,
+      phone: phones,
+      email: emails,
       urls: imageUrls.join(','), // Join URLs with comma
       createdBy: uid
     };
@@ -129,7 +159,7 @@ const ClientComponent = ({onClientsCountChange}) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     const clientData = prepareFormData();
-    
+
     if (editingId) {
       await dispatch(updateClient({ id: editingId, clientData }));
     } else {
@@ -149,6 +179,25 @@ const ClientComponent = ({onClientsCountChange}) => {
       urls: client.urls,
       createdBy: uid
     });
+    
+    // Parse contact information from comma-separated values
+    const names = client.name ? client.name.split(',') : [''];
+    const phones = client.phone ? client.phone.split(',') : [''];
+    const emails = client.email ? client.email.split(',') : [''];
+    
+    // Create contacts array
+    const contactArray = [];
+    const maxLength = Math.max(names.length, phones.length, emails.length);
+    
+    for (let i = 0; i < maxLength; i++) {
+      contactArray.push({
+        name: names[i] || '',
+        phone: phones[i] || '',
+        email: emails[i] || ''
+      });
+    }
+    
+    setContacts(contactArray);
     setImageUrls(client.urls ? client.urls.split(',') : []);
     setIsModalOpen(true);
   };
@@ -170,10 +219,32 @@ const ClientComponent = ({onClientsCountChange}) => {
     setShowSuggestions(false);
   };
 
+  // Function to display contact information with commas
+  const displayContacts = (client) => {
+    const names = client.name ? client.name.split(',') : [];
+    const phones = client.phone ? client.phone.split(',') : [];
+    const emails = client.email ? client.email.split(',') : [];
+    
+    return (
+      <div>
+        {names.map((name, index) => (
+          <div key={index} className="mb-1">
+            <div className="text-sm text-gray-900">{name}</div>
+            <div className="text-sm text-gray-500">
+              {phones[index] && `${phones[index]}`}
+              {phones[index] && emails[index] && ' • '}
+              {emails[index] && `${emails[index]}`}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   return (
-    <div className="container mx-auto px-4">
-      <div className="flex justify-between items-center mb-4">
-        <h1 className=" font-bold text-gray-800"></h1>
+    <div className="container mx-auto px-4 py-8">
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-2xl font-bold text-gray-800">Clients Management</h1>
         <div className="flex items-center gap-4">
           {/* Search Bar */}
           <div className="relative">
@@ -237,12 +308,18 @@ const ClientComponent = ({onClientsCountChange}) => {
           </div>
 
           <button
-            onClick={() => setIsModalOpen(true)}
-            className="flex items-center gap-2 bg-[#EA7125] text-white px-4 py-2 rounded-lg hover:bg-[#d45f1a] transition-colors"
+            onClick={() => isAdmin && setIsModalOpen(true)}
+            disabled={!isAdmin}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors
+    ${isAdmin
+                ? "bg-[#EA7125] text-white hover:bg-[#d45f1a]"
+                : "bg-gray-200 text-gray-500 cursor-not-allowed"}`}
+            title={isAdmin ? "Add New Client" : "Only admins can add clients"}
           >
             <Plus size={18} />
-            Add New Client
+            <span>Add New Client</span>
           </button>
+
         </div>
       </div>
 
@@ -280,31 +357,42 @@ const ClientComponent = ({onClientsCountChange}) => {
                       )}
                       <div>
                         <div className="text-sm font-medium text-gray-900">{client.client_name}</div>
-                        <div className="text-sm text-gray-500">{client.email}</div>
+                        <div className="text-sm text-gray-500">{client.email && client.email.split(',')[0]}</div>
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{client.name}</div>
-                    <div className="text-sm text-gray-500">{client.phone}</div>
+                  <td className="px-6 py-4">
+                    {displayContacts(client)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {client.companyType}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <button
-                      onClick={() => handleEdit(client)}
-                      className="text-[#EA7125] hover:text-[#d45f1a] mr-4"
+                      onClick={() => isAdmin && handleEdit(client)}
+                      disabled={!isAdmin}
+                      className={`mr-4 transition-colors 
+      ${isAdmin
+                          ? "text-[#EA7125] hover:text-[#d45f1a]"
+                          : "text-gray-400 cursor-not-allowed"}`}
+                      title={isAdmin ? "Edit Client" : "Only admins can edit"}
                     >
                       <Edit size={18} />
                     </button>
+
                     <button
-                      onClick={() => handleDelete(client.id)}
-                      className="text-red-500 hover:text-red-700"
+                      onClick={() => isAdmin && handleDelete(client.id)}
+                      disabled={!isAdmin}
+                      className={`transition-colors 
+      ${isAdmin
+                          ? "text-red-500 hover:text-red-700"
+                          : "text-gray-300 cursor-not-allowed"}`}
+                      title={isAdmin ? "Delete Client" : "Only admins can delete"}
                     >
                       <Trash2 size={18} />
                     </button>
                   </td>
+
                 </tr>
               ))}
             </tbody>
@@ -327,7 +415,7 @@ const ClientComponent = ({onClientsCountChange}) => {
                 <X size={24} />
               </button>
             </div>
-            
+
             <form onSubmit={handleSubmit} className="p-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <div>
@@ -341,43 +429,7 @@ const ClientComponent = ({onClientsCountChange}) => {
                     required
                   />
                 </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Contact Person*</label>
-                  <input
-                    type="text"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#EA7125]"
-                    required
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Phone*</label>
-                  <input
-                    type="tel"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#EA7125]"
-                    required
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Email*</label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#EA7125]"
-                    required
-                  />
-                </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Company Type*</label>
                   <select
@@ -395,7 +447,69 @@ const ClientComponent = ({onClientsCountChange}) => {
                   </select>
                 </div>
               </div>
-              
+
+              {/* Contact Information Section */}
+              <div className="mb-6">
+                <div className="flex justify-between items-center mb-2">
+                  <label className="block text-sm font-medium text-gray-700">Contact Information</label>
+                  <button
+                    type="button"
+                    onClick={addContact}
+                    className="text-sm text-[#EA7125] hover:text-[#d45f1a] flex items-center"
+                  >
+                    <Plus size={16} className="mr-1" />
+                    Add Another Contact
+                  </button>
+                </div>
+
+                {contacts.map((contact, index) => (
+                  <div key={index} className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 p-3 border rounded-md relative">
+                    {contacts.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeContact(index)}
+                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1"
+                      >
+                        <X size={14} />
+                      </button>
+                    )}
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Contact Person</label>
+                      <input
+                        type="text"
+                        value={contact.name}
+                        onChange={(e) => handleContactChange(index, 'name', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#EA7125]"
+                        placeholder="Name"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                      <input
+                        type="tel"
+                        value={contact.phone}
+                        onChange={(e) => handleContactChange(index, 'phone', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#EA7125]"
+                        placeholder="Phone"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                      <input
+                        type="email"
+                        value={contact.email}
+                        onChange={(e) => handleContactChange(index, 'email', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#EA7125]"
+                        placeholder="Email"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+
               <div className="mb-6">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
                 <textarea
@@ -406,14 +520,14 @@ const ClientComponent = ({onClientsCountChange}) => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#EA7125]"
                 />
               </div>
-              
+
               <div className="mb-6">
                 <label className="block text-sm font-medium text-gray-700 mb-2">Client Images</label>
-                <PhotoUploader 
+                <PhotoUploader
                   onUploadSuccess={handleImageUpload}
                   onUploadError={(error) => console.error('Upload error:', error)}
                 />
-                
+
                 {/* Preview uploaded images */}
                 {imageUrls.length > 0 && (
                   <div className="mt-4">
@@ -438,7 +552,7 @@ const ClientComponent = ({onClientsCountChange}) => {
                   </div>
                 )}
               </div>
-              
+
               <div className="flex justify-end space-x-3 pt-4 border-t">
                 <button
                   type="button"
