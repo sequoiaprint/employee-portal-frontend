@@ -1,18 +1,23 @@
 import React, { useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { deleteNews, updateNews } from '../../redux/news/news';
-import AddEditNews from './AddNews'; // Update with correct path
+import AddEditNews from './AddNews';
+import ViewNews from './ViewNews';
 import Cookies from 'js-cookie';
+import DOMPurify from 'dompurify';
+
 const Card = ({ news, onDeleted, onUpdated }) => {
   const dispatch = useDispatch();
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
   const role = Cookies.get('role');
   const isAdmin = role === "Admin Ops";
+  
   // Safe defaults for news data
   const safeNews = news || {};
   const safeAuthor = safeNews.author || {};
 
-  // Parse URLs if they exist (assuming comma-separated URLs)
+  // Parse URLs if they exist
   const imageUrls = safeNews.urls ? safeNews.urls.split(',').filter(url => url.trim()) : [];
 
   // Format date
@@ -24,6 +29,30 @@ const Card = ({ news, onDeleted, onUpdated }) => {
       day: 'numeric',
       year: 'numeric'
     });
+  };
+
+  // Function to decode HTML entities
+  const decodeHTML = (html) => {
+    if (!html) return '';
+    
+    const txt = document.createElement('textarea');
+    txt.innerHTML = html;
+    return txt.value;
+  };
+
+  // Function to create plain text preview (stripped of HTML tags)
+  const createTextPreview = (htmlContent, maxLength = 150) => {
+    if (!htmlContent) return 'No content available';
+    
+    // Decode HTML entities first
+    const decoded = decodeHTML(htmlContent);
+    
+    // Strip HTML tags
+    const stripped = decoded.replace(/<[^>]*>/g, '');
+    
+    // Trim to max length and add ellipsis if needed
+    if (stripped.length <= maxLength) return stripped;
+    return stripped.substring(0, maxLength) + '...';
   };
 
   const handleDelete = async () => {
@@ -41,6 +70,10 @@ const Card = ({ news, onDeleted, onUpdated }) => {
 
   const handleEdit = () => {
     setShowEditModal(true);
+  };
+
+  const handleView = () => {
+    setShowViewModal(true);
   };
 
   const handleNewsUpdated = async (updatedNews) => {
@@ -63,10 +96,10 @@ const Card = ({ news, onDeleted, onUpdated }) => {
 
   return (
     <>
-      <div className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+      <div className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 h-full flex flex-col">
         {/* Image Section */}
         {imageUrls.length > 0 && (
-          <div className="relative">
+          <div className="relative cursor-pointer" onClick={handleView}>
             {imageUrls.length === 1 ? (
               <img
                 src={imageUrls[0]}
@@ -103,7 +136,7 @@ const Card = ({ news, onDeleted, onUpdated }) => {
         )}
 
         {/* Content Section */}
-        <div className="p-6">
+        <div className="p-6 flex-1 flex flex-col">
           {/* Header with date and author */}
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center space-x-2">
@@ -116,18 +149,24 @@ const Card = ({ news, onDeleted, onUpdated }) => {
             </span>
           </div>
 
-          {/* Title */}
-          <h3 className="text-xl font-bold text-gray-900 mb-3 line-clamp-2 hover:text-blue-600 transition-colors">
+          {/* Title - clickable to view full news */}
+          <h3 
+            className="text-xl font-bold text-gray-900 mb-3 line-clamp-2 hover:text-blue-600 transition-colors cursor-pointer"
+            onClick={handleView}
+          >
             {safeNews.title || 'Untitled News'}
           </h3>
 
-          {/* Body */}
-          <p className="text-gray-600 text-sm mb-4 line-clamp-3">
-            {safeNews.body || 'No content available'}
-          </p>
+          {/* Body Preview - using plain text instead of HTML */}
+          <div 
+            className="text-gray-600 text-sm mb-4 line-clamp-3 news-preview cursor-pointer"
+            onClick={handleView}
+          >
+            {createTextPreview(safeNews.body)}
+          </div>
 
           {/* Footer */}
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between mt-auto">
             <div className="flex items-center space-x-2">
               <div className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center bg-gradient-to-r from-blue-500 to-purple-500">
                 {safeAuthor?.profilepicurl ? (
@@ -154,24 +193,33 @@ const Card = ({ news, onDeleted, onUpdated }) => {
                 </span>
               </div>
             </div>
-             {isAdmin &&(
-            <div className='absolute bottom-0 right-0'>
-              <button
-                onClick={handleDelete}
-                className="inline-flex items-center p-2 text-white text-sm font-medium rounded-lg hover:from-orange-600 hover:to-red-600 transition-all duration-300 transform hover:scale-105"
-                title="Delete news"
-              >
-                <img width="30" height="30" src="https://img.icons8.com/plasticine/50/filled-trash.png" alt="delete" />
-              </button>
-              <button
-                onClick={handleEdit}
-                className="inline-flex items-center p-2 text-white text-sm font-medium rounded-lg hover:from-orange-600 hover:to-red-600 transition-all duration-300 transform hover:scale-105"
-                title="Edit news"
-              >
-                <img width="30" height="30" src="https://img.icons8.com/plasticine/50/create-new.png" alt="edit" />
-              </button>
-            </div>
-             )}
+            
+            {/* Read More Button */}
+            <button
+              onClick={handleView}
+              className="text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors"
+            >
+              Read More →
+            </button>
+            
+            {isAdmin &&(
+              <div className='flex space-x-2'>
+                <button
+                  onClick={handleDelete}
+                  className="p-2 text-red-600 hover:text-red-800 transition-colors"
+                  title="Delete news"
+                >
+                  <img width="20" height="20" src="https://img.icons8.com/plasticine/50/filled-trash.png" alt="delete" />
+                </button>
+                <button
+                  onClick={handleEdit}
+                  className="p-2 text-blue-600 hover:text-blue-800 transition-colors"
+                  title="Edit news"
+                >
+                  <img width="20" height="20" src="https://img.icons8.com/plasticine/50/create-new.png" alt="edit" />
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -182,6 +230,14 @@ const Card = ({ news, onDeleted, onUpdated }) => {
           editingNews={safeNews}
           onNewsUpdated={handleNewsUpdated}
           onClose={() => setShowEditModal(false)}
+        />
+      )}
+
+      {/* View News Modal */}
+      {showViewModal && (
+        <ViewNews
+          news={safeNews}
+          onClose={() => setShowViewModal(false)}
         />
       )}
     </>
