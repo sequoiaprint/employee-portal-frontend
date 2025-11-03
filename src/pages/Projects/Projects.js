@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Search, ChevronDown, ChevronUp } from 'lucide-react';
 import MyProjects from '../../component/Projects/myProjects';
 import AllProjects from '../../component/Projects/AllProjects/allProjects';
+import AllTechProject from '../../component/Projects/AllTechProject/AllTechProject';
 
 export default function ProjectsPage() {
   const [searchExpanded, setSearchExpanded] = useState(false);
@@ -40,6 +41,7 @@ export default function ProjectsPage() {
       <div className="grid grid-cols-1 gap-8">
         <MyProjects />
         <AllProjects />
+        <AllTechProject />
       </div>
     </div>
   );

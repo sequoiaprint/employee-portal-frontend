@@ -3,7 +3,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { fetchProfile, initializeProfileFromStorage } from '../../redux/profile/profile';
 import Cookies from 'js-cookie';
-import {ClipboardList } from 'lucide-react';
+import { ClipboardList, Wrench } from 'lucide-react';
 import TodoList from './TodoList';
 
 // Move these helper functions outside the component to avoid recreation
@@ -86,7 +86,7 @@ const Header = ({ isSidebarCollapsed }) => {
     const initializeProfile = async () => {
       // First try to load from storage
       await dispatch(initializeProfileFromStorage());
-      
+
       // If we have a user but no profile, fetch fresh data
       if (user?.uid && !currentProfile?.uid) {
         console.log('User exists but profile missing, fetching...');
@@ -110,7 +110,7 @@ const Header = ({ isSidebarCollapsed }) => {
       try {
         const userUid = getUserUid();
         if (!userUid) return;
-        
+
         const token = getAuthToken();
         if (!token) return;
 
@@ -121,20 +121,20 @@ const Header = ({ isSidebarCollapsed }) => {
             'Content-Type': 'application/json'
           }
         });
-        
+
         if (!response.ok) {
           console.error('Failed to fetch tasks for count');
           return;
         }
-        
+
         const data = await response.json();
-        
+
         if (Array.isArray(data)) {
           // Count incomplete tasks
           const remaining = data.filter(item => item.isCompleted !== 1).length;
           setRemainingCount(remaining);
         }
-        
+
       } catch (err) {
         console.error("Error fetching remaining count:", err);
       }
@@ -145,7 +145,7 @@ const Header = ({ isSidebarCollapsed }) => {
 
     // Optionally refresh count every 5 minutes
     const interval = setInterval(fetchRemainingCount, 5 * 60 * 1000);
-    
+
     return () => clearInterval(interval);
   }, []);
 
@@ -156,7 +156,7 @@ const Header = ({ isSidebarCollapsed }) => {
         // Check if the click target is the todo button or inside the todo dropdown
         const todoButton = event.target.closest('[data-todo-button]');
         const todoDropdown = event.target.closest('.todo-dropdown-container');
-        
+
         // Close if clicked outside both the button and dropdown
         if (!todoButton && !todoDropdown) {
           setShowTodoDropdown(false);
@@ -172,6 +172,9 @@ const Header = ({ isSidebarCollapsed }) => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [showTodoDropdown]);
+  const handleBulkConverterClick = () => {
+    window.location.href = '/bulk-converter';
+  };
 
   // Handle click outside for Profile dropdown
   useEffect(() => {
@@ -180,7 +183,7 @@ const Header = ({ isSidebarCollapsed }) => {
         // Check if the click target is the profile button or inside the profile dropdown
         const profileButton = event.target.closest('[data-profile-button]');
         const profileDropdown = event.target.closest('.profile-dropdown-container');
-        
+
         // Close if clicked outside both the button and dropdown
         if (!profileButton && !profileDropdown) {
           setShowProfileDropdown(false);
@@ -210,6 +213,7 @@ const Header = ({ isSidebarCollapsed }) => {
       case '/clients': return 'Clients';
       case '/projects': return 'Projects';
       case '/assignment': return 'Assignment';
+      case '/bulk-converter': return 'Bulk Converter';
       default: return 'Dashboard';
     }
   };
@@ -221,7 +225,7 @@ const Header = ({ isSidebarCollapsed }) => {
 
   // Get user data with fallback priority: currentProfile -> user -> localProfile
   const userDisplayData = currentProfile || user || localProfile || {};
-  
+
   // Get full name: firstname + lastname if available, otherwise username
   const getFullName = () => {
     if (userDisplayData.firstname && userDisplayData.lastname) {
@@ -337,6 +341,21 @@ const Header = ({ isSidebarCollapsed }) => {
           </div>
 
           <div className="flex items-center space-x-6">
+            {/* tools */}
+            <div className="relative group">
+              <button
+                onClick={handleBulkConverterClick}
+                className="text-white flex flex-row items-center relative hover:bg-gray-700 rounded p-1 transition-colors"
+              >
+                <Wrench size={30} />
+              </button>
+
+              {/* CSS-only tooltip - NO STATE */}
+              <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg shadow-xl z-50 whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 pointer-events-none">
+                Bulk Converter
+                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-b-gray-900"></div>
+              </div>
+            </div>
             <div className="relative">
               <button
                 className="text-white flex flex-row items-center relative"
@@ -344,7 +363,7 @@ const Header = ({ isSidebarCollapsed }) => {
                 data-todo-button="true"
               >
                 <ClipboardList size={30} />
-                
+
                 {/* Badge for remaining count - now always shows if there are remaining tasks */}
                 {remainingCount > 0 && (
                   <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center animate-pulse">
@@ -355,14 +374,14 @@ const Header = ({ isSidebarCollapsed }) => {
 
               {showTodoDropdown && (
                 <div className="todo-dropdown-container absolute right-0 mt-2 z-50">
-                  <TodoList 
+                  <TodoList
                     onRemainingChange={handleRemainingChange}
                     onClose={() => setShowTodoDropdown(false)}
                   />
                 </div>
               )}
             </div>
-            
+
             <div className="hidden lg:block text-right">
               <p className="text-sm text-white">Welcome back,</p>
               <p className="text-sm font-semibold text-white">

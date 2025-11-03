@@ -1,4 +1,3 @@
-
 import { configureStore } from '@reduxjs/toolkit';
 import authReducer from './auth/auth';
 import profileReducer from './profile/profile';
@@ -7,7 +6,9 @@ import insightReducer from './Insights/Insights';
 import teamReducer from './team/team';
 import clientReducer from './client/client';
 import projectReducer from './project/project';
-import assigmentReducer from './assignment/assignment'
+import assigmentReducer from './assignment/assignment';
+import techProjectReducer from './TechProject/TechProject';
+
 export const store = configureStore({
   reducer: {
     auth: authReducer,
@@ -17,7 +18,8 @@ export const store = configureStore({
     teams: teamReducer,
     clients: clientReducer,
     projects: projectReducer,
-    assignments: assigmentReducer
+    assignments: assigmentReducer,
+    techProjects: techProjectReducer
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

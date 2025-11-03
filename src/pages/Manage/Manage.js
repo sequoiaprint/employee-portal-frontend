@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Users, UserCheck, FileText, Briefcase, Plus, Search, BarChart3, LayoutDashboard } from 'lucide-react';
+import { Users, UserCheck, FileText, Briefcase, Plus, Search, BarChart3, LayoutDashboard,MonitorCloud  } from 'lucide-react';
 import ClientComponent from '../../component/Manage/client/client';
 import EmployeeComponent from '../../component/Manage/employee/employee';
 import ProjectComponent from '../../component/Manage/project/project';
 import TeamComponent from '../../component/Manage/team/team';
-
+import TechProjects from '../../component/Manage/TechProjects/TechProjects';
 import { useDispatch, useSelector } from 'react-redux';
 
 const ManagePage = () => {
@@ -48,6 +48,7 @@ const ManagePage = () => {
     { id: 'client', name: 'Clients', icon: Users, color: 'bg-orange-400' },
     { id: 'employee', name: 'Employees', icon: UserCheck, color: 'bg-orange-500' },
     { id: 'project', name: 'Projects', icon: Briefcase, color: 'bg-orange-600' },
+    { id: 'techproject', name: 'Tech Projects', icon: MonitorCloud, color: 'bg-orange-600' },
     { id: 'team', name: 'Teams', icon: Users, color: 'bg-orange-400' },
   ];
 
@@ -144,6 +145,12 @@ const ManagePage = () => {
         return (
           <FullPageContainer title="Project Management" icon={Briefcase}>
             <ProjectComponent onProjectsCountChange={handleProjectCountChange} />
+          </FullPageContainer>
+        );
+      case 'techproject':
+        return (
+          <FullPageContainer title="Tech Projects Management" icon={Briefcase}>
+            <TechProjects />
           </FullPageContainer>
         );
       case 'team':

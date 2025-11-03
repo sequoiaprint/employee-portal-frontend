@@ -52,6 +52,7 @@ export const fetchProjects = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const token = getAuthToken();
+      console.log('Fetched token:', token);
       if (!token) {
         handleUnauthorized();
         return rejectWithValue('No authentication token found');
