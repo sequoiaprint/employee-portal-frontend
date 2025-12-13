@@ -19,13 +19,15 @@ import ClientPage from './pages/client/client';
 import ProjectsPage from './pages/Projects/Projects';
 import Assignment from './pages/Assignment/Assignment';
 import BulkConverter from './pages/BulkConverter/BulkConverter';
-
+import WorkForce from './pages/WorkForce/WorkForce';
+import Attendance from './pages/WorkForce/attendance/attendance';
+import Overtime from './pages/WorkForce/overtime/overtime';
 const App = () => {
   const dispatch = useDispatch();
-  
+
   useEffect(() => {
     console.log('App: Starting auth initialization...');
-    
+
     // Initialize auth first
     dispatch(initializeAuth())
       .then(() => {
@@ -45,19 +47,27 @@ const App = () => {
           <Route path="/" element={<Home />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/profile/edit" element={<EditProfile />} />
-          <Route path='/news' element={<News/>}/>
-          <Route path='/insights' element={<Insights/>}/>
-          <Route path='/hr' element={<HrHub/>}/>
-          <Route path='/resources' element={<Resources/>}/>
-          <Route path='/clients' element={<ClientPage/>}/>
-          <Route path='/projects' element={<ProjectsPage/>}/>
-          <Route path='/assignment' element={<Assignment/>}/>
-          <Route path='/bulk-converter' element={<BulkConverter/>}/>
-          
+          <Route path='/news' element={<News />} />
+          <Route path='/insights' element={<Insights />} />
+          <Route path='/hr' element={<HrHub />} />
+          <Route path='/resources' element={<Resources />} />
+          <Route path='/clients' element={<ClientPage />} />
+          <Route path='/projects' element={<ProjectsPage />} />
+          <Route path='/assignment' element={<Assignment />} />
+          <Route path='/bulk-converter' element={<BulkConverter />} />
+
           {/* Admin only route */}
-         
-            <Route path='/manage' element={<ManagePage/>}/>
-         
+
+          <Route path='/manage' element={<ManagePage />} />
+          <Route path='/workforce' element={<WorkForce />}>
+            <Route path="attendance" element={<Attendance />} />
+              <Route path="overtime" element={<Overtime />} />
+            {/* <Route path="capacity" element={<Capacity />} />
+            <Route path="leave" element={<Leave />} />
+            <Route path="shift" element={<Shift />} />
+           */}
+          </Route>
+
         </Route>
       </Routes>
     </Router>

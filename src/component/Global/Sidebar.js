@@ -10,21 +10,26 @@ import {
   LogIn,
   ExternalLink,
   Lock,
-  AlertTriangle
+  AlertTriangle,
+  ChevronDown,
+  ChevronRight
 } from 'lucide-react';
 
 const Sidebar = () => {
   const [isCollapsed, setIsCollapsed] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [sidebarHeight, setSidebarHeight] = useState('100vh');
+  const [workforceOpen, setWorkforceOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const dispatch = useDispatch();
   const role = Cookies.get('role');
   const isAdmin = role === "Admin Ops";
-   useEffect(() => {
+
+  useEffect(() => {
     setIsCollapsed(true);
   }, [location.pathname]);
+
   // Handle responsive behavior and calculate sidebar height
   useEffect(() => {
     const handleResize = () => {
@@ -70,6 +75,10 @@ const Sidebar = () => {
 
   const toggleSidebar = () => {
     setIsCollapsed(!isCollapsed);
+  };
+
+  const toggleWorkforceDropdown = () => {
+    setWorkforceOpen(!workforceOpen);
   };
 
   const menuItems = [
@@ -184,8 +193,40 @@ const Sidebar = () => {
     }] : [])
   ];
 
+  // Workforce sub-menu items
+  const workforceSubItems = [
+    {
+      id: 'attendance',
+      label: 'Attendance & Punctuality',
+      icon: (
+        <img 
+          src="https://img.icons8.com/external-flaticons-lineal-color-flat-icons/64/external-attendance-human-resources-flaticons-lineal-color-flat-icons.png" 
+          alt="attendance" 
+          className="w-3 h-3 flex-shrink-0"
+        />
+      ),
+      path: '/workforce/attendance'
+    },
+    {
+      id: 'overtime',
+      label: 'Overtime Analysis',
+      icon: (
+        <img 
+          src="https://img.icons8.com/fluency/48/overtime.png" 
+          alt="overtime" 
+          className="w-3 h-3 flex-shrink-0"
+        />
+      ),
+      path: '/workforce/overtime'
+    }
+  ];
+
   const isActiveRoute = (path) => {
     return location.pathname === path;
+  };
+
+  const isWorkforceActive = () => {
+    return workforceSubItems.some(item => location.pathname.startsWith(item.path));
   };
 
   const handleNavigation = (path) => {
@@ -311,6 +352,63 @@ const Sidebar = () => {
                 </button>
               </li>
             ))}
+            
+            {/* Workforce Management Dropdown - Only for Admin */}
+            {isAdmin && (
+              <li>
+                <button
+                  onClick={toggleWorkforceDropdown}
+                  className={`w-full flex items-center justify-between px-3 py-2 sm:px-4 sm:py-3 rounded-lg sm:rounded-xl transition-all duration-300 text-left ${
+                    isWorkforceActive()
+                      ? 'bg-gradient-to-r from-orange-100 to-orange-50 shadow-sm border-l-3 sm:border-l-4 border-orange-500'
+                      : 'hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100 hover:shadow-sm'
+                  }`}
+                  style={{ color: '#EA7125' }}
+                >
+                  <div className="flex items-center space-x-2 sm:space-x-3">
+                    <span className="flex-shrink-0">
+                      <img 
+                        src="https://img.icons8.com/external-flaticons-flat-flat-icons/64/external-workforce-gig-economy-flaticons-flat-flat-icons-2.png" 
+                        alt="workforce" 
+                        className="w-4 h-4 flex-shrink-0"
+                      />
+                    </span>
+                    <span className="text-xs sm:text-sm font-medium truncate">WorkForce Management</span>
+                  </div>
+                  <span className="flex-shrink-0">
+                    {workforceOpen ? (
+                      <ChevronDown className="w-3 h-3 sm:w-4 sm:h-4" />
+                    ) : (
+                      <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4" />
+                    )}
+                  </span>
+                </button>
+                
+                {/* Workforce Sub-menu */}
+                {workforceOpen && (
+                  <ul className="mt-1 ml-4 sm:ml-6 space-y-1 border-l border-gray-200 pl-2 sm:pl-3">
+                    {workforceSubItems.map((subItem) => (
+                      <li key={subItem.id}>
+                        <button
+                          onClick={() => handleNavigation(subItem.path)}
+                          className={`w-full flex items-center space-x-2 sm:space-x-3 px-2 py-1.5 sm:px-3 sm:py-2 rounded-lg transition-all duration-300 text-left ${
+                            isActiveRoute(subItem.path)
+                              ? 'bg-gradient-to-r from-orange-50 to-orange-25 shadow-sm border-l-2 border-orange-400'
+                              : 'hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100 hover:shadow-sm'
+                          }`}
+                          style={{ color: '#EA7125' }}
+                        >
+                          <span className="flex-shrink-0">
+                            {subItem.icon}
+                          </span>
+                          <span className="text-xs sm:text-sm font-medium truncate">{subItem.label}</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </li>
+            )}
           </ul>
         </nav>
 

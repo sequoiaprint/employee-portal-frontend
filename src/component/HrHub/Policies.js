@@ -52,7 +52,7 @@ const Policies = ({ onClose }) => {
             <ul className="space-y-2">
               {category.policies.map((policy, i) => (
                 <li key={i} className="flex items-start">
-                  <span className="inline-block bg-blue-100 text-blue-800 p-1 rounded mr-2">📄</span>
+                  <span className="inline-block bg-blue-100 text-blue-800 p-1 rounded mr-2"></span>
                   <span className="hover:text-blue-600 cursor-pointer">{policy}</span>
                 </li>
               ))}
