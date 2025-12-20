@@ -156,11 +156,11 @@ const AbsentDashboard2 = () => {
       <div className="w-full mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 flex items-center gap-2">
+          <h1 className="text-xl md:text-2xl font-bold text-gray-900 flex items-center gap-2">
             <Calendar className="h-8 w-8 text-blue-600" />
             Employee Absent Departmentwise (Monday & Friday)
           </h1>
-          <p className="text-gray-600 mt-2">
+          <p className="text-[12px] 2xl:text-sm text-black mt-2">
             Who shows a pattern of Monday or Friday absences beyond team average? (Date Range : {dateRange})
           </p>
         </div>
@@ -175,7 +175,7 @@ const AbsentDashboard2 = () => {
             >
               <div className="flex items-start justify-between">
                 <div>
-                  <div className="flex items-center gap-2 mb-2">
+                  <div className="flex items-center text-sm gap-2 mb-2">
                     <Building2 className="h-5 w-5 text-blue-500" />
                     <h3 className="font-semibold text-gray-800">
                       {departmentMapping[deptKey]}
@@ -204,11 +204,7 @@ const AbsentDashboard2 = () => {
                 <ArrowRight className="h-5 w-5 text-gray-400 hover:text-blue-600" />
               </div>
 
-              <div className="mt-4 pt-3 border-t border-gray-100">
-                <div className="text-xs text-gray-500">
-                  Click to view details
-                </div>
-              </div>
+              
             </div>
           ))}
         </div>

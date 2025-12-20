@@ -12,7 +12,9 @@ import {
     Search,
     ChevronDown,
     ChevronUp,
-    Calendar
+    Calendar,
+    Filter,
+    X
 } from 'lucide-react';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
@@ -31,6 +33,8 @@ const AllOvertimeMachineTable = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [expandedEmployee, setExpandedEmployee] = useState(null);
     const [attendanceDetails, setAttendanceDetails] = useState({});
+    const [currentView, setCurrentView] = useState('desktop');
+    const [showFilters, setShowFilters] = useState(false);
 
     const validFloors = [
         "all",
@@ -49,8 +53,23 @@ const AllOvertimeMachineTable = () => {
         "Silk Screen"
     ];
 
-    // Calculate days duration
-    const daysDuration = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
+    // Check screen size and update view
+    useEffect(() => {
+        const checkScreenSize = () => {
+            if (window.innerWidth < 768) {
+                setCurrentView('mobile');
+            } else if (window.innerWidth < 1024) {
+                setCurrentView('tablet');
+            } else {
+                setCurrentView('desktop');
+            }
+        };
+
+        checkScreenSize();
+        window.addEventListener('resize', checkScreenSize);
+        
+        return () => window.removeEventListener('resize', checkScreenSize);
+    }, []);
 
     useEffect(() => {
         const fetchEmployeesData = async () => {
@@ -60,7 +79,6 @@ const AllOvertimeMachineTable = () => {
                 setExpandedEmployee(null);
                 setAttendanceDetails({});
 
-                // Format dates to YYYY-MM-DD
                 const formatDate = (date) => {
                     return date.toISOString().split('T')[0];
                 };
@@ -185,7 +203,6 @@ const AllOvertimeMachineTable = () => {
 
     const handleStartDateChange = (date) => {
         if (date > endDate) {
-            // If selected start date is after end date, adjust both
             setStartDate(date);
             setEndDate(date);
         } else {
@@ -195,7 +212,6 @@ const AllOvertimeMachineTable = () => {
 
     const handleEndDateChange = (date) => {
         if (date < startDate) {
-            // If selected end date is before start date, adjust both
             setEndDate(date);
             setStartDate(date);
         } else {
@@ -209,6 +225,430 @@ const AllOvertimeMachineTable = () => {
         employee.jobtitle?.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
+    // Mobile employee card
+    const renderMobileEmployeeCard = (employee) => {
+        const employeeId = employee.employee_id || employee.name;
+        const isExpanded = expandedEmployee === employeeId;
+
+        return (
+            <div key={employeeId} className="bg-white border border-gray-200 rounded-lg p-3 mb-2 shadow-sm">
+                <div className="flex justify-between items-start mb-2">
+                    <div>
+                        <h4 className="text-sm font-semibold text-gray-900">{employee.name}</h4>
+                        <div className="grid grid-cols-2 gap-1 mt-1 text-xs">
+                            <div>
+                                <span className="text-gray-500">Job:</span>
+                                <p className="font-medium">{employee.jobtitle || 'N/A'}</p>
+                            </div>
+                            <div>
+                                <span className="text-gray-500">Machine:</span>
+                                <p className="font-medium">{employee.machine || 'N/A'}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <button
+                        onClick={() => toggleEmployeeExpansion(employee)}
+                        className="ml-1 p-1 bg-green-100 rounded-md"
+                        aria-label={isExpanded ? "Collapse details" : "Expand details"}
+                    >
+                        {isExpanded ? (
+                            <ChevronUp className="w-3 h-3 text-green-600" />
+                        ) : (
+                            <ChevronDown className="w-3 h-3 text-green-600" />
+                        )}
+                    </button>
+                </div>
+                
+                <div className="mt-1 pt-1 border-t border-gray-100">
+                    <div className="flex justify-between items-center">
+                        <div className="text-xs text-gray-500">
+                            <span className="flex items-center gap-1">
+                                <UserCheck className="w-3 h-3" />
+                                {employee.totalAttendance || 0} Days
+                            </span>
+                        </div>
+                        <div className="text-xs text-gray-500">
+                            <span className="flex items-center gap-1">
+                                <Building className="w-3 h-3" />
+                                {employee.floor || 'N/A'}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                {isExpanded && (
+                    <div className="mt-2 pt-2 border-t border-gray-100">
+                        <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-1 px-2 py-1 bg-blue-100 rounded text-xs">
+                                    <Clock className="w-3 h-3 text-blue-700" />
+                                    <span className="font-medium text-blue-900">
+                                        {formatDuration(calculateTotalEffectiveHours(employeeId))}
+                                    </span>
+                                </div>
+                                <div className="flex items-center gap-1 px-2 py-1 bg-red-100 rounded text-xs">
+                                    <AlertCircle className="w-3 h-3 text-red-700" />
+                                    <span className="font-medium text-red-900">
+                                        {formatDuration(calculateTotalOvertime(employeeId))}
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            <div className="text-xs font-medium text-gray-700 mb-1">Attendance Details</div>
+                            <div className="bg-gray-50 rounded p-2 max-h-40 overflow-y-auto">
+                                {attendanceDetails[employeeId]?.length > 0 ? (
+                                    <div className="space-y-1">
+                                        {attendanceDetails[employeeId].map((attendance, idx) => (
+                                            <div key={attendance.attendance_id || idx} className="border-b border-gray-100 pb-1 last:border-0">
+                                                <div className="flex justify-between text-xs">
+                                                    <span className="font-medium">
+                                                        {new Date(attendance.attendance_date).toLocaleDateString('en-US', {
+                                                            month: 'short',
+                                                            day: 'numeric'
+                                                        })}
+                                                    </span>
+                                                    <span className={`px-1 rounded ${attendance.is_offday === 1
+                                                            ? 'bg-yellow-100 text-yellow-800'
+                                                            : 'bg-green-100 text-green-800'
+                                                        }`}>
+                                                        {attendance.is_offday === 1 ? 'Off' : 'Work'}
+                                                    </span>
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-1 text-xs text-gray-600">
+                                                    <div>In: {formatTime(attendance.first_in_of_the_day_time)}</div>
+                                                    <div>Out: {formatTime(attendance.last_out_of_the_day_time)}</div>
+                                                    <div>Shift: {formatTime(attendance.shift_start)}-{formatTime(attendance.shift_end)}</div>
+                                                    <div>OT: {formatDuration(attendance.total_effective_overtime_duration)}</div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="text-xs text-gray-500 text-center py-1">
+                                        No attendance records found
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+        );
+    };
+
+    // Tablet employee card
+    const renderTabletEmployeeCard = (employee) => {
+        const employeeId = employee.employee_id || employee.name;
+        const isExpanded = expandedEmployee === employeeId;
+
+        return (
+            <div key={employeeId} className="bg-white border border-gray-200 rounded-lg p-3 mb-2 shadow-sm">
+                <div className="flex justify-between items-center mb-2">
+                    <div className="flex items-center gap-2">
+                        <div className="flex-shrink-0">
+                            <h4 className="text-sm font-semibold text-gray-900">{employee.name}</h4>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <span className="px-2 py-0.5 bg-green-100 text-green-800 rounded-full text-xs font-medium">
+                                {employee.totalAttendance || 0} Days
+                            </span>
+                            <button
+                                onClick={() => toggleEmployeeExpansion(employee)}
+                                className="p-1 bg-green-100 rounded-md"
+                                aria-label={isExpanded ? "Collapse details" : "Expand details"}
+                            >
+                                {isExpanded ? (
+                                    <ChevronUp className="w-3 h-3 text-green-600" />
+                                ) : (
+                                    <ChevronDown className="w-3 h-3 text-green-600" />
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div className="grid grid-cols-3 gap-2 mb-2 text-xs">
+                    <div>
+                        <span className="text-gray-500">Job Title</span>
+                        <p className="font-medium">{employee.jobtitle || 'N/A'}</p>
+                    </div>
+                    <div>
+                        <span className="text-gray-500">Machine</span>
+                        <p className="font-medium">{employee.machine || 'N/A'}</p>
+                    </div>
+                    <div>
+                        <span className="text-gray-500">Floor</span>
+                        <p className="font-medium">{employee.floor || 'N/A'}</p>
+                    </div>
+                </div>
+
+                {isExpanded && (
+                    <div className="mt-2 pt-2 border-t border-gray-100">
+                        <div className="space-y-3">
+                            <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-1 px-3 py-1.5 bg-blue-100 rounded-lg text-xs">
+                                    <Clock className="w-3.5 h-3.5 text-blue-700" />
+                                    <span className="font-medium text-blue-900">
+                                        {formatDuration(calculateTotalEffectiveHours(employeeId))}
+                                    </span>
+                                    <span className="text-blue-700 ml-1">Effective Hours</span>
+                                </div>
+                                <div className="flex items-center gap-1 px-3 py-1.5 bg-red-100 rounded-lg text-xs">
+                                    <AlertCircle className="w-3.5 h-3.5 text-red-700" />
+                                    <span className="font-medium text-red-900">
+                                        {formatDuration(calculateTotalOvertime(employeeId))}
+                                    </span>
+                                    <span className="text-red-700 ml-1">Overtime</span>
+                                </div>
+                            </div>
+                            
+                            <div className="text-xs font-medium text-gray-700">Attendance Details</div>
+                            <div className="bg-gray-50 rounded p-2 max-h-48 overflow-y-auto">
+                                {attendanceDetails[employeeId]?.length > 0 ? (
+                                    <div className="space-y-2">
+                                        {attendanceDetails[employeeId].map((attendance, idx) => (
+                                            <div key={attendance.attendance_id || idx} className="border border-gray-200 rounded p-2">
+                                                <div className="flex justify-between items-center mb-1">
+                                                    <span className="font-medium text-xs">
+                                                        {new Date(attendance.attendance_date).toLocaleDateString('en-US', {
+                                                            month: 'short',
+                                                            day: 'numeric'
+                                                        })}
+                                                    </span>
+                                                    <span className={`px-2 py-0.5 rounded-full text-xs ${attendance.is_offday === 1
+                                                            ? 'bg-yellow-100 text-yellow-800'
+                                                            : 'bg-green-100 text-green-800'
+                                                        }`}>
+                                                        {attendance.is_offday === 1 ? 'Off' : 'Work'}
+                                                    </span>
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-1 text-xs text-gray-600">
+                                                    <div>In: {formatTime(attendance.first_in_of_the_day_time)}</div>
+                                                    <div>Out: {formatTime(attendance.last_out_of_the_day_time)}</div>
+                                                    <div>Shift: {formatTime(attendance.shift_start)}-{formatTime(attendance.shift_end)}</div>
+                                                    <div>OT: {formatDuration(attendance.total_effective_overtime_duration)}</div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="text-xs text-gray-500 text-center py-2">
+                                        No attendance records found
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+        );
+    };
+
+    // Mobile/Tablet filters toggle
+    const renderMobileTabletFilters = () => {
+        return (
+            <div className="mb-4">
+                <button
+                    onClick={() => setShowFilters(!showFilters)}
+                    className="flex items-center justify-between w-full text-left mb-1 bg-gray-50 p-2 rounded-lg"
+                >
+                    <div className="flex items-center gap-2">
+                        <Filter className="w-4 h-4 text-gray-600" />
+                        <h3 className="text-sm font-semibold text-gray-700">
+                            Filters & Search
+                        </h3>
+                    </div>
+                    {showFilters ? (
+                        <ChevronUp className="w-4 h-4 text-gray-500" />
+                    ) : (
+                        <ChevronDown className="w-4 h-4 text-gray-500" />
+                    )}
+                </button>
+                
+                {showFilters && (
+                    <div className="bg-white p-3 rounded-lg border border-gray-200">
+                        <div className="space-y-3">
+                            {/* Date Range */}
+                            <div>
+                                <h4 className="text-xs font-medium text-gray-700 mb-1">Date Range</h4>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label className="block text-xs text-gray-700 mb-0.5">Start Date</label>
+                                        <DatePicker
+                                            selected={startDate}
+                                            onChange={handleStartDateChange}
+                                            selectsStart
+                                            startDate={startDate}
+                                            endDate={endDate}
+                                            maxDate={endDate}
+                                            dateFormat="MMM dd"
+                                            className="w-full px-2 py-1 bg-white border border-gray-300 rounded text-sm text-gray-700"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-gray-700 mb-0.5">End Date</label>
+                                        <DatePicker
+                                            selected={endDate}
+                                            onChange={handleEndDateChange}
+                                            selectsEnd
+                                            startDate={startDate}
+                                            endDate={endDate}
+                                            minDate={startDate}
+                                            maxDate={new Date()}
+                                            dateFormat="MMM dd"
+                                            className="w-full px-2 py-1 bg-white border border-gray-300 rounded text-sm text-gray-700"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Search Bar */}
+                            <div>
+                                <label className="block text-xs font-medium text-gray-700 mb-0.5">Search</label>
+                                <div className="relative">
+                                    <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
+                                        <Search className="h-3 w-3 text-gray-400" />
+                                    </div>
+                                    <input
+                                        type="text"
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        placeholder="Search name, ID or job title..."
+                                        className="w-full pl-7 pr-4 py-1 border border-gray-300 rounded text-sm"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Floor Filter */}
+                            <div>
+                                <label className="block text-xs font-medium text-gray-700 mb-0.5">
+                                    Floor Filter
+                                </label>
+                                <select
+                                    value={floorFilter}
+                                    onChange={(e) => setFloorFilter(e.target.value)}
+                                    className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                                >
+                                    {validFloors.map(floor => (
+                                        <option key={floor} value={floor}>{floor}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {/* Clear Search Button */}
+                            {searchQuery && (
+                                <div className="pt-1">
+                                    <button
+                                        onClick={() => setSearchQuery('')}
+                                        className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                                    >
+                                        Clear search
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+            </div>
+        );
+    };
+
+// Desktop filters (original layout)
+const renderDesktopFilters = () => {
+    return (
+        <div className="space-y-4 mb-6">
+            {/* Top Row: Date Pickers and Floor Filter */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+                {/* Start Date */}
+                <div className="w-full">
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                        Start Date
+                    </label>
+                    <DatePicker
+                        selected={startDate}
+                        onChange={handleStartDateChange}
+                        selectsStart
+                        startDate={startDate}
+                        endDate={endDate}
+                        maxDate={endDate}
+                        dateFormat="MMM dd"
+                        className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-700"
+                    />
+                </div>
+
+                {/* End Date */}
+                <div className="w-full">
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                        End Date
+                    </label>
+                    <DatePicker
+                        selected={endDate}
+                        onChange={handleEndDateChange}
+                        selectsEnd
+                        startDate={startDate}
+                        endDate={endDate}
+                        minDate={startDate}
+                        maxDate={new Date()}
+                        dateFormat="MMM dd"
+                        className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-700"
+                    />
+                </div>
+
+                {/* Floor Filter */}
+                <div className="w-full">
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                        Floor Filter
+                    </label>
+                    <select
+                        value={floorFilter}
+                        onChange={(e) => setFloorFilter(e.target.value)}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                    >
+                        {validFloors.map(floor => (
+                            <option key={floor} value={floor}>{floor}</option>
+                        ))}
+                    </select>
+                </div>
+
+                {/* Employee Count - Only on large screens */}
+                <div className="hidden lg:block w-full">
+                    {employeesData.length > 0 && (
+                        <div className="px-4 py-2 rounded-lg text-sm font-medium bg-blue-100 text-blue-800 border border-blue-200 w-full">
+                            <Users className="w-4 h-4 inline mr-2" />
+                            {employeesData.length} Employee{employeesData.length > 1 ? 's' : ''}
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* Bottom Row: Search Bar (full width) */}
+            <div className="w-full">
+                <div className="relative max-w-2xl">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <Search className="h-4 w-4 text-gray-400" />
+                    </div>
+                    <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="Search by name, ID or job title..."
+                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                    />
+                    {searchQuery && (
+                        <button
+                            onClick={() => setSearchQuery('')}
+                            className="absolute inset-y-0 right-0 pr-3 flex items-center text-blue-600 hover:text-blue-800"
+                        >
+                            <X className="h-4 w-4" />
+                        </button>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+    // Expanded Row for Desktop (original)
     const ExpandedRow = ({ employee }) => {
         const employeeId = employee.employee_id || employee.name;
         const details = attendanceDetails[employeeId] || [];
@@ -330,10 +770,124 @@ const AllOvertimeMachineTable = () => {
         );
     };
 
+    // Desktop table (original layout)
+    const renderDesktopTable = () => {
+        return (
+            <div className="overflow-x-auto">
+                <div className="h-[500px] overflow-y-auto border border-gray-200 rounded-lg">
+                    <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                            <tr>
+                                <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <div className="flex items-center gap-2">
+                                        <User className="w-4 h-4" />
+                                        Employee Details
+                                    </div>
+                                </th>
+                                <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <div className="flex items-center gap-2">
+                                        <Briefcase className="w-4 h-4" />
+                                        Job Title & Division
+                                    </div>
+                                </th>
+                                <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <div className="flex items-center gap-2">
+                                        <HardDrive className="w-4 h-4" />
+                                        Machine & Floor
+                                    </div>
+                                </th>
+                                <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <div className="flex items-center gap-2">
+                                        <UserCheck className="w-4 h-4" />
+                                        Attendance Details
+                                    </div>
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                            {filteredEmployees.map((employee) => {
+                                const employeeId = employee.employee_id || employee.name;
+                                const isExpanded = expandedEmployee === employeeId;
+
+                                return (
+                                    <React.Fragment key={employeeId}>
+                                        <tr
+                                            className={`cursor-pointer ${isExpanded ? 'bg-green-50' : 'bg-white'}`}
+                                            onClick={() => toggleEmployeeExpansion(employee)}
+                                        >
+                                            <td className="px-2">
+                                                <div className="flex items-center">
+                                                    <div className="ml-4">
+                                                        <div className="text-sm font-medium text-gray-900">{employee.name}</div>
+                                                    </div>
+                                                </div>
+                                            </td>
+
+                                            <td className="px-2">
+                                                <div className="text-sm">
+                                                    <div className="font-medium text-gray-900">{employee.jobtitle || 'N/A'}</div>
+                                                    <div className="text-gray-500">{employee.division || 'N/A'}</div>
+                                                </div>
+                                            </td>
+
+                                            <td className="px-2">
+                                                <div className="text-sm">
+                                                    <div className="font-medium text-gray-900">{employee.machine || 'N/A'}-{employee.floor || 'N/A'}</div>
+                                                </div>
+                                            </td>
+
+                                            <td className="px-2">
+                                                <div className="flex items-center justify-between">
+                                                    <div className="flex flex-row items-center gap-2 rounded-lg bg-green-100 text-green-800 border border-green-200">
+                                                        <div className="px-3 py-1 text-sm font-medium">
+                                                            {employee.totalAttendance || 0} Days
+                                                        </div>
+                                                        <div>
+                                                            {isExpanded ? (
+                                                                <ChevronUp className="w-5 h-5 text-gray-500" />
+                                                            ) : (
+                                                                <ChevronDown className="w-5 h-5 text-gray-500" />
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {isExpanded && <ExpandedRow employee={employee} />}
+                                    </React.Fragment>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+
+                {/* Search results count */}
+                <div className="mt-3 text-sm text-gray-500 flex justify-between items-center">
+                    <div>
+                        Showing {filteredEmployees.length} of {employeesData.length} employees
+                        {searchQuery && (
+                            <span className="ml-2">
+                                for "<span className="font-medium">{searchQuery}</span>"
+                            </span>
+                        )}
+                    </div>
+                    {searchQuery && (
+                        <button
+                            onClick={() => setSearchQuery('')}
+                            className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                        >
+                            Clear search
+                        </button>
+                    )}
+                </div>
+            </div>
+        );
+    };
+
     if (loading) {
         return (
-            <div className="bg-white rounded-lg shadow p-6 mt-6">
-                <div className="flex items-center justify-between mb-6">
+            <div className="bg-white rounded-lg shadow p-4 mt-6">
+                <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-3">
                         <div className="p-2 bg-blue-100 rounded-lg">
                             <Users className="w-6 h-6 text-blue-600" />
@@ -345,7 +899,7 @@ const AllOvertimeMachineTable = () => {
                     </div>
                 </div>
 
-                <div className="text-center py-12">
+                <div className="text-center py-8">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
                     <p className="text-gray-500 mt-4">Loading employees data...</p>
                 </div>
@@ -355,8 +909,8 @@ const AllOvertimeMachineTable = () => {
 
     if (error) {
         return (
-            <div className="bg-white rounded-lg shadow p-6 mt-6">
-                <div className="flex items-center justify-between mb-6">
+            <div className="bg-white rounded-lg shadow p-4 mt-6">
+                <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-3">
                         <div className="p-2 bg-blue-100 rounded-lg">
                             <Users className="w-6 h-6 text-blue-600" />
@@ -380,8 +934,8 @@ const AllOvertimeMachineTable = () => {
     }
 
     return (
-        <div className="bg-white rounded-lg shadow p-6 mt-6">
-            <div className="flex items-center justify-between mb-6">
+        <div className="bg-white rounded-lg shadow p-4 mt-6">
+            <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
                     <div className="p-2 bg-blue-100 rounded-lg">
                         <Users className="w-6 h-6 text-blue-600" />
@@ -402,214 +956,79 @@ const AllOvertimeMachineTable = () => {
                 )}
             </div>
 
-            {/* Filters & Search */}
-            <div className="flex flex-row items-center justify-start  gap-4 mb-6">
-                {/* Date Range Picker */}
-                <div className="flex flex-col sm:flex-row items-center gap-4  rounded-lg  ">
-                    <div className="flex flex-col sm:flex-row items-center gap-4">
-                        <div className="w-full sm:w-40">
-                            <label className="block text-xs font-medium text-gray-700 mb-1">
-                                Start Date
-                            </label>
-                            <DatePicker
-                                selected={startDate}
-                                onChange={handleStartDateChange}
-                                selectsStart
-                                startDate={startDate}
-                                endDate={endDate}
-                                maxDate={endDate}
-                                dateFormat="MMM dd"
-                                className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-700"
-                            />
-                        </div>
-
+            {/* Mobile View */}
+            <div className="md:hidden">
+                {currentView === 'mobile' && (
+                    <>
+                        {renderMobileTabletFilters()}
                         
-
-                        <div className="w-full sm:w-40">
-                            <label className="block text-xs font-medium text-gray-700 mb-1">
-                                End Date
-                            </label>
-                            <DatePicker
-                                selected={endDate}
-                                onChange={handleEndDateChange}
-                                selectsEnd
-                                startDate={startDate}
-                                endDate={endDate}
-                                minDate={startDate}
-                                maxDate={new Date()}
-                                dateFormat="MMM dd"
-                                className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-700"
-                            />
-                        </div>
-
-                        
-                    </div>
-                </div>
-
-                {/* Search and Floor Filter */}
-                <div className="flex flex-col sm:flex-row gap-4 mt-5">
-                    {/* Search Bar */}
-                    <div className="relative w-full sm:w-64">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <Search className="h-4 w-4 text-gray-400" />
-                        </div>
-                        <input
-                            type="text"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            placeholder="Search by name, ID or job title..."
-                            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                        />
-                    </div>
-
-                    {/* Floor Filter */}
-                    <div className="w-full sm:w-48">
-                        <select
-                            value={floorFilter}
-                            onChange={(e) => setFloorFilter(e.target.value)}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                        >
-                            {validFloors.map(floor => (
-                                <option key={floor} value={floor}>{floor}</option>
-                            ))}
-                        </select>
-                    </div>
-                </div>
+                        {filteredEmployees.length === 0 ? (
+                            <div className="text-center py-8">
+                                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 max-w-md mx-auto">
+                                    <AlertCircle className="w-12 h-12 text-yellow-600 mx-auto mb-3" />
+                                    <h4 className="text-lg font-semibold text-yellow-800 mb-2">No Matching Employees</h4>
+                                    <p className="text-yellow-600">
+                                        {searchQuery
+                                            ? `No employees found matching "${searchQuery}"`
+                                            : "No employees found for the selected filters."}
+                                    </p>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="h-[500px] overflow-y-auto">
+                                {filteredEmployees.map((employee) => renderMobileEmployeeCard(employee))}
+                            </div>
+                        )}
+                    </>
+                )}
             </div>
 
-            {/* Table */}
-            {filteredEmployees.length === 0 ? (
-                <div className="text-center py-12">
-                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-8 max-w-md h-[500px] flex justify-center items-center mx-auto">
-                        <AlertCircle className="w-12 h-12 text-yellow-600 mx-auto mb-3" />
-                        <h4 className="text-lg font-semibold text-yellow-800 mb-2">No Matching Employees</h4>
-                        <p className="text-yellow-600">
-                            {searchQuery
-                                ? `No employees found matching "${searchQuery}"`
-                                : "No employees found for the selected filters."}
-                        </p>
-                    </div>
-                </div>
-            ) : (
-                <div className="overflow-x-auto">
-                    <div className="h-[500px] overflow-y-auto border border-gray-200 rounded-lg">
-                        <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-gray-50">
-                                <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        <div className="flex items-center gap-2">
-                                            <User className="w-4 h-4" />
-                                            Employee Details
-                                        </div>
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        <div className="flex items-center gap-2">
-                                            <Briefcase className="w-4 h-4" />
-                                            Job Title & Division
-                                        </div>
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        <div className="flex items-center gap-2">
-                                            <HardDrive className="w-4 h-4" />
-                                            Machine & Floor
-                                        </div>
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        <div className="flex items-center gap-2">
-                                            <UserCheck className="w-4 h-4" />
-                                            Attendance Details
-                                        </div>
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody className="bg-white divide-y divide-gray-200">
-                                {filteredEmployees.map((employee) => {
-                                    const employeeId = employee.employee_id || employee.name;
-                                    const isExpanded = expandedEmployee === employeeId;
-
-                                    return (
-                                        <React.Fragment key={employeeId}>
-                                            <tr
-                                                className={` cursor-pointer ${isExpanded ? 'bg-green-50' : 'bg-white'}`}
-                                                onClick={() => toggleEmployeeExpansion(employee)}
-                                            >
-                                                <td className="px-6  whitespace-nowrap">
-                                                    <div className="flex items-center">
-                                                        <div className="flex-shrink-0 h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center">
-                                                            <User className="h-5 w-5 text-blue-600" />
-                                                        </div>
-                                                        <div className="ml-4">
-                                                            <div className="text-sm font-medium text-gray-900">{employee.name}</div>
-
-                                                        </div>
-                                                    </div>
-                                                </td>
-
-                                                <td className="px-6  whitespace-nowrap">
-                                                    <div className="text-sm">
-                                                        <div className="font-medium text-gray-900">{employee.jobtitle || 'N/A'}</div>
-                                                        <div className="text-gray-500">{employee.division || 'N/A'}</div>
-                                                    </div>
-                                                </td>
-
-                                                <td className="px-6  whitespace-nowrap">
-                                                    <div className="text-sm">
-                                                        <div className="font-medium text-gray-900">{employee.machine || 'N/A'}</div>
-                                                        <div className="text-gray-500">{employee.floor || 'N/A'}</div>
-                                                    </div>
-                                                </td>
-
-                                                <td className="px-6  ">
-                                                    <div className="flex items-center justify-between">
-                                                        <div className="flex flex-row items-center gap-2 rounded-lg  bg-green-100 text-green-800 border border-green-200">
-                                                            <div className="px-3 py-1  text-sm font-medium">
-                                                                <UserCheck className="w-4 h-4 inline mr-2" />
-                                                                {employee.totalAttendance || 0} Days
-
-                                                            </div>
-                                                            <div>
-                                                                {isExpanded ? (
-                                                                    <ChevronUp className="w-5 h-5 text-gray-500" />
-                                                                ) : (
-                                                                    <ChevronDown className="w-5 h-5 text-gray-500" />
-                                                                )}
-
-                                                            </div>
-
-                                                        </div>
-
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                            {isExpanded && <ExpandedRow employee={employee} />}
-                                        </React.Fragment>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
-                    </div>
-
-                    {/* Search results count */}
-                    <div className="mt-3 text-sm text-gray-500 flex justify-between items-center">
-                        <div>
-                            Showing {filteredEmployees.length} of {employeesData.length} employees
-                            {searchQuery && (
-                                <span className="ml-2">
-                                    for "<span className="font-medium">{searchQuery}</span>"
-                                </span>
-                            )}
-                        </div>
-                        {searchQuery && (
-                            <button
-                                onClick={() => setSearchQuery('')}
-                                className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                            >
-                                Clear search
-                            </button>
+            {/* Tablet View */}
+            <div className="hidden md:block lg:hidden">
+                {currentView === 'tablet' && (
+                    <>
+                        {renderMobileTabletFilters()}
+                        
+                        {filteredEmployees.length === 0 ? (
+                            <div className="text-center py-8">
+                                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 max-w-md mx-auto">
+                                    <AlertCircle className="w-12 h-12 text-yellow-600 mx-auto mb-3" />
+                                    <h4 className="text-lg font-semibold text-yellow-800 mb-2">No Matching Employees</h4>
+                                    <p className="text-yellow-600">
+                                        {searchQuery
+                                            ? `No employees found matching "${searchQuery}"`
+                                            : "No employees found for the selected filters."}
+                                    </p>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="h-[500px] overflow-y-auto">
+                                {filteredEmployees.map((employee) => renderTabletEmployeeCard(employee))}
+                            </div>
                         )}
+                    </>
+                )}
+            </div>
+
+            {/* Desktop View */}
+            <div className="hidden lg:block">
+                {renderDesktopFilters()}
+                {filteredEmployees.length === 0 ? (
+                    <div className="text-center py-8">
+                        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 max-w-md mx-auto">
+                            <AlertCircle className="w-12 h-12 text-yellow-600 mx-auto mb-3" />
+                            <h4 className="text-lg font-semibold text-yellow-800 mb-2">No Matching Employees</h4>
+                            <p className="text-yellow-600">
+                                {searchQuery
+                                    ? `No employees found matching "${searchQuery}"`
+                                    : "No employees found for the selected filters."}
+                            </p>
+                        </div>
                     </div>
-                </div>
-            )}
+                ) : (
+                    renderDesktopTable()
+                )}
+            </div>
         </div>
     );
 };
